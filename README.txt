@@ -26,7 +26,7 @@ and unpack the package:
 For example, on 64-bit Linux:
 
 >tar zxvf gpu_blastn_linux_configure.tar.gz
->./chmod +x install
+>chmod +x install
 
 2) Install G-BLASTN
 
