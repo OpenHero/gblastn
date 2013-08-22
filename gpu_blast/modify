@@ -1,0 +1,195 @@
+#blast!/bin/bash
+
+cxx_dir=$1
+
+echo $1
+
+#src files
+
+#cp   ./ncbi_blast_files/functions.cpp                           $cxx_dir/src/algo/blast/core/functions.cpp
+
+if [ -f $cxx_dir/src/app/blast/blastn_app.cpp ]; then
+    cp  $cxx_dir/src/app/blast/blastn_app.cpp             $cxx_dir/src/app/blast/blastn_app.cpp.backup
+    cp   ./ncbi_blast_files/blastn_app.cpp                  $cxx_dir/src/app/blast/
+else
+    echo "\"$cxx_dir/src/app/blast/blastn_app.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/corelib/ncbiargs.cpp ]; then
+    cp  $cxx_dir/src/corelib/ncbiargs.cpp             $cxx_dir/src/corelib/ncbiargs.cpp.backup
+    cp   ./ncbi_blast_files/ncbiargs.cpp                  $cxx_dir/src/corelib/
+else
+    echo "\"$cxx_dir/src/corelib/ncbiargs.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/include/corelib/ncbiargs.hpp ]; then
+    cp  $cxx_dir/include/corelib/ncbiargs.hpp             $cxx_dir/include/corelib/ncbiargs.hpp.backup
+    cp   ./ncbi_blast_files/ncbiargs.hpp                  $cxx_dir/include/corelib/
+else
+    echo "\"$cxx_dir/include/corelib/ncbiargs.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/corelib/ncbiapp.cpp ]; then
+    cp  $cxx_dir/src/corelib/ncbiapp.cpp             $cxx_dir/src/corelib/ncbiapp.cpp.backup
+    cp   ./ncbi_blast_files/ncbiapp.cpp                  $cxx_dir/src/corelib/
+else
+    echo "\"$cxx_dir/src/corelib/ncbiapp.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/include/corelib/ncbiapp.hpp ]; then
+    cp  $cxx_dir/include/corelib/ncbiapp.hpp             $cxx_dir/include/corelib/ncbiapp.hpp.backup
+    cp   ./ncbi_blast_files/ncbiapp.hpp                  $cxx_dir/include/corelib/
+else
+    echo "\"$cxx_dir/include/corelib/ncbiapp.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/blastinput/blast_args.cpp ]; then
+    cp  $cxx_dir/src/algo/blast/blastinput/blast_args.cpp             $cxx_dir/src/algo/blast/blastinput/blast_args.cpp.backup
+    cp   ./ncbi_blast_files/blast_args.cpp                      $cxx_dir/src/algo/blast/blastinput
+else
+    echo "\"$cxx_dir/src/algo/blast/blastinput/blast_args.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/blastinput/blastn_args.cpp ]; then
+    cp  $cxx_dir/src/algo/blast/blastinput/blastn_args.cpp             $cxx_dir/src/algo/blast/blastinput/blastn_args.cpp.backup
+    cp   ./ncbi_blast_files/blastn_args.cpp                      $cxx_dir/src/algo/blast/blastinput/blastn_args.cpp
+else
+    echo "\"$cxx_dir/src/algo/blast/blastinput/blastn_args.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/blastinput/cmdline_flags.cpp ]; then
+    cp  $cxx_dir/src/algo/blast/blastinput/cmdline_flags.cpp             $cxx_dir/src/algo/blast/blastinput/cmdline_flags.cpp.backup
+    cp   ./ncbi_blast_files/cmdline_flags.cpp                      $cxx_dir/src/algo/blast/blastinput/cmdline_flags.cpp
+else
+    echo "\"$cxx_dir/src/algo/blast/blastinput/cmdline_flags.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/api/blast_memento_priv.hpp ]; then
+    cp  $cxx_dir/src/algo/blast/api/blast_memento_priv.hpp             $cxx_dir/src/algo/blast/api/blast_memento_priv.hpp.backup
+    cp   ./ncbi_blast_files/blast_memento_priv.hpp                      $cxx_dir/src/algo/blast/api/blast_memento_priv.hpp
+else
+    echo "\"$cxx_dir/src/algo/blast/api/blast_memento_priv.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/api/blast_options_local_priv.hpp ]; then
+    cp  $cxx_dir/src/algo/blast/api/blast_options_local_priv.hpp             $cxx_dir/src/algo/blast/api/blast_options_local_priv.hpp.backup
+    cp   ./ncbi_blast_files/blast_options_local_priv.hpp                      $cxx_dir/src/algo/blast/api/blast_options_local_priv.hpp
+else
+    echo "\"$cxx_dir/src/algo/blast/api/blast_options_local_priv.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/api/blast_options_cxx.cpp ]; then
+    cp  $cxx_dir/src/algo/blast/api/blast_options_cxx.cpp             $cxx_dir/src/algo/blast/api/blast_options_cxx.cpp.backup
+    cp   ./ncbi_blast_files/blast_options_cxx.cpp                      $cxx_dir/src/algo/blast/api/blast_options_cxx.cpp
+else
+    echo "\"$cxx_dir/src/algo/blast/api/blast_options_cxx.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/api/prelim_search_runner.hpp ]; then
+    cp  $cxx_dir/src/algo/blast/api/prelim_search_runner.hpp             $cxx_dir/src/algo/blast/api/prelim_search_runner.hpp.backup
+    cp   ./ncbi_blast_files/prelim_search_runner.hpp                      $cxx_dir/src/algo/blast/api/prelim_search_runner.hpp
+else
+    echo "\"$cxx_dir/src/algo/blast/api/prelim_search_runner.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/api/local_blast.cpp ]; then
+    cp  $cxx_dir/src/algo/blast/api/local_blast.cpp             $cxx_dir/src/algo/blast/api/local_blast.cpp.backup
+    cp   ./ncbi_blast_files/local_blast.cpp                      $cxx_dir/src/algo/blast/api/local_blast.cpp
+else
+    echo "\"$cxx_dir/src/algo/blast/api/local_blast.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/algo/blast/api/winmask_filter.cpp ]; then
+    cp  $cxx_dir/src/algo/blast/api/winmask_filter.cpp             $cxx_dir/src/algo/blast/api/winmask_filter.cpp.backup
+    cp   ./ncbi_blast_files/winmask_filter.cpp                      $cxx_dir/src/algo/blast/api/winmask_filter.cpp
+else
+    echo "\"$cxx_dir/src/algo/blast/api/winmask_filter.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/objtools/blast/seqdb_reader/seqdbvol.cpp ]; then
+    cp  $cxx_dir/src/objtools/blast/seqdb_reader/seqdbvol.cpp             $cxx_dir/src/objtools/blast/seqdb_reader/seqdbvol.cpp.backup
+    cp   ./ncbi_blast_files/seqdbvol.cpp                       $cxx_dir/src/objtools/blast/seqdb_reader/seqdbvol.cpp
+else
+    echo "\"$cxx_dir/src/objtools/blast/seqdb_reader/seqdbvol.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+#include files
+
+
+#cp  ./ncbi_blast_files//gpu_cpu_common.h                        $cxx_dir/include/algo/blast/core/gpu_cpu_common.h
+
+if [ -f $cxx_dir/include/algo/blast/core/blast_gapalign.h ];  then
+    cp  $cxx_dir/include/algo/blast/core/blast_gapalign.h             $cxx_dir/include/algo/blast/core/blast_gapalign.h.backup
+    cp   ./ncbi_blast_files/blast_gapalign.h                          $cxx_dir/include/algo/blast/core/
+else
+    echo "\"$cxx_dir/include/algo/blast/core/blast_gapalign.h\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/include/algo/blast/core/blast_options.h ];  then
+    cp  $cxx_dir/include/algo/blast/core/blast_options.h             $cxx_dir/include/algo/blast/core/blast_options.h.backup
+    cp   ./ncbi_blast_files/blast_options.h                          $cxx_dir/include/algo/blast/core/
+else
+    echo "\"$cxx_dir/include/algo/blast/core/blast_options.h\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/include/algo/blast/blastinput/blast_args.hpp ];  then
+    cp  $cxx_dir/include/algo/blast/blastinput/blast_args.hpp             $cxx_dir/include/algo/blast/blastinput/blast_args.hpp.backup
+    cp   ./ncbi_blast_files/blast_args.hpp                          $cxx_dir/include/algo/blast/blastinput/
+else
+    echo "\"$cxx_dir/include/algo/blast/blastinput/blast_args.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/include/algo/blast/blastinput/cmdline_flags.hpp ];  then
+    cp  $cxx_dir/include/algo/blast/blastinput/cmdline_flags.hpp             $cxx_dir/include/algo/blast/blastinput/cmdline_flags.hpp.backup
+    cp   ./ncbi_blast_files/cmdline_flags.hpp                          $cxx_dir/include/algo/blast/blastinput/
+else
+    echo "\"$cxx_dir/include/algo/blast/blastinput/cmdline_flags.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/include/algo/blast/api/blast_options.hpp ];  then
+    cp  $cxx_dir/include/algo/blast/api/blast_options.hpp             $cxx_dir/include/algo/blast/api/blast_options.hpp.backup
+    cp   ./ncbi_blast_files/blast_options.hpp                          $cxx_dir/include/algo/blast/api/
+else
+    echo "\"$cxx_dir/include/algo/blast/api/blast_options.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/include/algo/blast/api/local_blast.hpp ]; then
+    cp  $cxx_dir/include/algo/blast/api/local_blast.hpp             $cxx_dir/include/algo/blast/api/local_blast.hpp.backup
+    cp   ./ncbi_blast_files/local_blast.hpp                      $cxx_dir/include/algo/blast/api/local_blast.hpp
+else
+    echo "\"$cxx_dir/include/algo/blast/api/local_blast.hpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+
+#GPU BLASTN source code
+
+    mkdir $cxx_dir/include/algo/blast/gpu_blast
+    mkdir $cxx_dir/src/algo/blast/gpu_blast
+
+    cp ./include/*.* $cxx_dir/include/algo/blast/gpu_blast/
+    cp ./src/*.* $cxx_dir/src/algo/blast/gpu_blast/
+    cp ./src/makefile $cxx_dir/src/algo/blast/gpu_blast
+
+
+exit 0
