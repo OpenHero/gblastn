@@ -16,11 +16,19 @@ else
     exit 1
 fi
 
+if [ -f $cxx_dir/src/algo/blast/core/blast_nalookup.c ]; then
+    cp  $cxx_dir/src/algo/blast/core/blast_nalookup.c             $cxx_dir/src/algo/blast/core/blast_nalookup.c.backup
+    cp   ./ncbi_blast_files/blast_nalookup.c                  $cxx_dir/src/algo/blast/core/
+else
+    echo "\"$cxx_dir/src/algo/blast/core/blast_nalookup.c\" could not be found. Exiting..."
+    exit 1
+fi
+
 if [ -f $cxx_dir/src/corelib/ncbiargs.cpp ]; then
     cp  $cxx_dir/src/corelib/ncbiargs.cpp             $cxx_dir/src/corelib/ncbiargs.cpp.backup
     cp   ./ncbi_blast_files/ncbiargs.cpp                  $cxx_dir/src/corelib/
 else
-    echo "\"$cxx_dir/src/corelib/ncbiargs.cpp\" could not be found. Exiting..."
+    echo "\"$cxx_dir/src/algo/blast/core/blast_nalookup.c\" could not be found. Exiting..."
     exit 1
 fi
 
