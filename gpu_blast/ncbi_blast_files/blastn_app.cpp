@@ -250,10 +250,10 @@ int CBlastnApp::Method1_opt(string job_name)
 		__int64 c1 = slogfile.Start();
 		__int64 c_start = slogfile.NewStart(true);
 		// Allow the fasta reader to complain on invalid sequence input
-		SetDiagPostLevel(eDiag_Warning);
+		//SetDiagPostLevel(eDiag_Warning);
 
 		/*** Get the BLAST options ***/
-		const CArgs& args = GetArgs();
+		CArgs& args = GetArgs();
 		CRef<CBlastOptionsHandle> opts_hndl;
 		if(RecoverSearchStrategy(args, m_CmdLineArgs)){
 			opts_hndl.Reset(&*m_CmdLineArgs->SetOptionsForSavedStrategy(args));
@@ -383,7 +383,7 @@ int CBlastnApp::Method1_opt(string job_name)
 		__int64 t_end = slogfile.NewEnd(true);
 		double total_time = slogfile.elaplsedTime(c_start, t_end);
 		slogfile.addTotalTime("Total Time", total_time, false);
-		slogfile.m_file<< job_name <<"\t" << total_time << "\n";
+		slogfile.m_file<< job_name <<"\t";
 		slogfile.printTotalBySteps();
 		slogfile.reset();
 
@@ -427,9 +427,9 @@ int CBlastnApp::Method1(const CBlastOptions& opt)
 					unsigned int n_plain = kMax_UInt;
 					arg_desc->x_CreateArg("-query",true,line,&n_plain, args, true);
 #if WIN32
-					string name = line.substr(line.find_last_of("\\"), line.length());
+					string name = line.substr(line.find_last_of("\\")+1, line.length());
 #else
-					string name = line.substr(line.find_last_of("/"), line.length());
+					string name = line.substr(line.find_last_of("/")+1, line.length());
 #endif
 					//string outputfile = output+name+".out";
 					//cout << "name:" <<outputfile <<endl;
@@ -576,7 +576,7 @@ int CBlastnApp::Method2_opt(string job_name)
 		__int64 c2_1 = slogfile.NewEnd(true);
 		double total_time = slogfile.elaplsedTime(c1_1, c2_1);
 		slogfile.addTotalTime("Total Time", total_time, false);
-		slogfile.m_file<< job_name <<"\t" << total_time << "\n";
+		slogfile.m_file<< job_name <<"\t";
 		slogfile.printTotalBySteps();
 		slogfile.reset();
 
@@ -850,7 +850,7 @@ int CBlastnApp::Method3(const CBlastOptions& opt)
 		int trace_num = opt.GetTraceNum();
 		int print_num = opt.GetPrintNum();
 
-		cout << "prelim:" << prelim_num << " trace:" << trace_num << "print:" << print_num << endl;
+		//cout << "prelim:" << prelim_num << " trace:" << trace_num << "print:" << print_num << endl;
 		//////////////////////////////////////////////////////////////////////////
 		job_queue = new work_queue<JobItem*>;
 		query_queue = new work_queue<work_item*>;

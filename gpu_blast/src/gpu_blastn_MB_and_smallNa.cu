@@ -342,7 +342,7 @@ Int4
 	{	
 		//printf("%d,\n", current_subject_id);
 		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],((scan_range_temp)+3)/4));
+		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(scan_range_temp)/4));
 		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (scan_range_temp) / 4 , cudaMemcpyHostToDevice));
 	}
 	slogfile.End();
@@ -682,7 +682,7 @@ Int4
 	{
 		//printf("id:%d\n", p_scanMultiDBAuxWrap->subject_id);
 		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],((subject_len) +3)/4));
+		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len/4)));
 		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
 	}
 	slogfile.End();
@@ -785,7 +785,7 @@ Int4
 	{
 		//printf("id:%d\n", p_scanMultiDBAuxWrap->subject_id);
 		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],((subject_len) +3)/4));
+		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len)/4));
 		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
 	}
 	slogfile.End();
@@ -918,7 +918,7 @@ Int4
 	{	
 		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
 		printf("id:%d\n", p_scanMultiDBAuxWrap->subject_id);
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len+3)/4));
+		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len/4)));
 		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
 	}
 	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //³õÊ¼»¯Îª0
