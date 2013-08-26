@@ -61,6 +61,11 @@ Int4
 	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
 	Int4* scan_range);
 Int4 
+	s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3(const LookupTableWrap* lookup_wrap,
+	const BLAST_SequenceBlk* subject,
+	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
+	Int4* scan_range);
+Int4 
 	s_gpu_MBScanSubject_Any_scankernel_Opt_v3(const LookupTableWrap* lookup_wrap,
 	const BLAST_SequenceBlk* subject,
 	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
@@ -78,5 +83,16 @@ Int4
 	Blast_ExtendWord * ewp,
 	BlastInitHitList * init_hitlist,
 	Uint4 s_range );
+
+Int4
+	s_new_BlastNaExtendDirect(BlastOffsetPair * offset_pairs, Int4 num_hits,
+	const BlastInitialWordParameters * word_params,
+	LookupTableWrap * lookup_wrap,
+	BLAST_SequenceBlk * query,
+	BLAST_SequenceBlk * subject, Int4 ** matrix,
+	BlastQueryInfo * query_info,
+	Blast_ExtendWord * ewp,
+	BlastInitHitList * init_hitlist,
+	Uint4 s_range);
 
 #endif
