@@ -419,7 +419,7 @@ int CBlastnApp::Method1(const CBlastOptions& opt)
 				if (!line.empty())
 				{
 					total_jobs++;
-					//cout << line << endl;
+					cout << line << endl;
 					/*** Get the BLAST options ***/
 					CArgs& args = GetArgs();
 
@@ -659,9 +659,9 @@ int CBlastnApp::Method2(const CBlastOptions& opt)
 						arg_desc->x_CreateArg("-query",true,line,&n_plain, args, true);
 
 #if WIN32
-						string name = line.substr(line.find_last_of("\\"), line.length());
+						string name = line.substr(line.find_last_of("\\")+1, line.length());
 #else
-						string name = line.substr(line.find_last_of("/"), line.length());
+						string name = line.substr(line.find_last_of("/")+1, line.length());
 #endif
 						//cout << "name:" << name <<endl;;
 						arg_desc->x_CreateArg("-out",true, output + name +".out",&n_plain, args, true);
@@ -910,7 +910,7 @@ int CBlastnApp::Method3(const CBlastOptions& opt)
 #if WIN32
 						string name = line.substr(line.find_last_of("\\")+1, line.length());
 #else
-						string name = line.substr(line.find_last_of("/"), line.length());
+						string name = line.substr(line.find_last_of("/")+1, line.length());
 #endif
 						arg_desc->x_CreateArg("-out",true, output + name +".out",&n_plain, args, true);
 

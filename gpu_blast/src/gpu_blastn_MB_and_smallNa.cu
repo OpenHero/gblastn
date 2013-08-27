@@ -917,7 +917,7 @@ Int4
 	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
 	{	
 		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		printf("id:%d\n", p_scanMultiDBAuxWrap->subject_id);
+		//printf("id:%d\n", p_scanMultiDBAuxWrap->subject_id);
 		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len/4)));
 		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
 	}
@@ -1103,15 +1103,18 @@ Int4
 			Int4 s_offset = offset_pairs[index].qs_offsets.s_off;
 			Int4 q_offset = offset_pairs[index].qs_offsets.q_off;
 
-			hits_extended += s_BlastnDiagHashExtendInitialHit(query, subject, 
-				q_offset, s_offset,  
-				NULL,
-				query_info, s_range, 
-				word_length, word_length,
-				lookup_wrap,
-				word_params, matrix,
-				ewp->hash_table,
-				init_hitlist);
+			//if (s_offset < subject->length)
+			//{
+				hits_extended += s_BlastnDiagHashExtendInitialHit(query, subject, 
+					q_offset, s_offset,  
+					NULL,
+					query_info, s_range, 
+					word_length, word_length,
+					lookup_wrap,
+					word_params, matrix,
+					ewp->hash_table,
+					init_hitlist);
+			//}
 		}
 	} 
 	else {

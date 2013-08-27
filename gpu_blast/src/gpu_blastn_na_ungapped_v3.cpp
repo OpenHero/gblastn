@@ -372,8 +372,8 @@ void GpuLookUpSetUp(LookupTableWrap * lookup_wrap)
 		}
 
 		if (mb_lt->lut_word_length == mb_lt->word_length || mb_lt->discontiguous)
-			//mb_lt->extend_callback = (void *)s_new_BlastNaExtendDirect;
-			mb_lt->extend_callback = (void*)s_gpu_BlastNaExtend_Opt_v3;
+			mb_lt->extend_callback = (void *)s_new_BlastNaExtendDirect;
+			//mb_lt->extend_callback = (void*)s_gpu_BlastNaExtend_Opt_v3;
 		else
 			mb_lt->extend_callback = (void*)s_gpu_BlastNaExtend_Opt_v3;
 	}

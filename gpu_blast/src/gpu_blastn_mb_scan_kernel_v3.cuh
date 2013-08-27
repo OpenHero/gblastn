@@ -221,7 +221,7 @@ __inline__ __device__ void checkResult(PV_ARRAY_TYPE* d_lookupArray,
 {
 	if (s_gpu_BlastMBLookupHasHits(d_lookupArray, s_temp, pv_array_bts))
 	{  
-		Int4 s_global_offset = scan_range_0 + s_index << 4;
+		Int4 s_global_offset = scan_range_0 + s_index << 2;
 		Uint4 index_offset = atomicAdd(&sh_cnt, 1);
 		sh_offsetpair[index_offset].qs_offsets.q_off = s_temp;
 		sh_offsetpair[index_offset].qs_offsets.s_off = s_global_offset;
