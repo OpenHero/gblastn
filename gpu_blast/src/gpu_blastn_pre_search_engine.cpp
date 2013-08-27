@@ -1268,19 +1268,18 @@ Int4
 				}
 				else if (lookup_wrap->lut_type == eMBLookupTable) 
 				{
-					//BlastMBLookupTable *mb_lt = (BlastMBLookupTable*)lookup_wrap->lut;
-					//mb_lt->lut_word_length;
-
-					//if (stat_length > 10000)
-					//{
-					//	mb_lt->scansub_callback = new_lp_cb;
-					//	mb_lt->extend_callback = new_lp_et;
-					//}
-					//else
-					//{
-					//	mb_lt->scansub_callback = org_lp_cb;
-					//	mb_lt->extend_callback = org_lp_et;
-					//}
+					BlastMBLookupTable *mb_lt = (BlastMBLookupTable*)lookup_wrap->lut;
+					mb_lt->lut_word_length;	
+					if (stat_length > 1000)
+					{
+						mb_lt->scansub_callback = new_lp_cb;
+						mb_lt->extend_callback = new_lp_et;
+					}
+					else
+					{
+						mb_lt->scansub_callback = org_lp_cb;
+						mb_lt->extend_callback = org_lp_et;
+					}
 				}
 			}
 

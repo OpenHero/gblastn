@@ -607,7 +607,7 @@ Int4
 		global_size,
 		p_MBHashWrap->lookupArray); 
 
-	getLastCudaError("gpu_blastn_scan_11_2mod4() execution failed.\n");
+	getLastCudaError("gpu_blastn_scan_11_2mod4_v3() execution failed.\n");
 
 	slogfile.KernelEnd();
 	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
@@ -626,30 +626,34 @@ Int4
 	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
 	Int4* scan_range)
 {
-	Int4 threadNum = 512;
-	Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
-	dim3 gridDim(blockNum, 1);
-	dim3 blockDim(threadNum, 1);
+	if (total_hits > 0)
+	{
+		Int4 threadNum = 512;
+		Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
+		dim3 gridDim(blockNum, 1);
+		dim3 blockDim(threadNum, 1);
 
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
+		checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
 
-	slogfile.KernelStart();
+		slogfile.KernelStart();
+		//cout << total_hits << endl; 
 
-	kernel_lookupInBigHashTable_v3<<<gridDim,blockDim>>>(
-		p_MBHashWrap->hashtable,
-		p_MBHashWrap->next_pos,
-		total_hits,
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		p_scanMultiDBAuxWrap->over_hits_num,
-		p_MBHashWrap->next_pos_len
-		);
-	getLastCudaError("kernel_lookupInBigHashTable() execution failed.\n");
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime(), false );
+		kernel_lookupInBigHashTable_v3<<<gridDim,blockDim>>>(
+			p_MBHashWrap->hashtable,
+			p_MBHashWrap->next_pos,
+			total_hits,
+			p_scanMultiDBAuxWrap->offsetPairs,
+			p_scanMultiDBAuxWrap->over_offset_pairs,
+			p_scanMultiDBAuxWrap->over_hits_num,
+			p_MBHashWrap->next_pos_len
+			);
+		getLastCudaError("kernel_lookupInBigHashTable_v3() execution failed.\n");
+		slogfile.KernelEnd();
+		slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime(), false );
 
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits, false);
+		checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
+		slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits, false);
+	}
 	
 	return total_hits;
 }
@@ -747,7 +751,7 @@ Int4
 		global_size,
 		p_MBHashWrap->lookupArray); 
 
-	getLastCudaError("gpu_blastn_scan_11_2mod4() execution failed.\n");
+	getLastCudaError("gpu_blastn_scan_11_1mod4() execution failed.\n");
 
 	slogfile.KernelEnd();
 	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
@@ -847,7 +851,7 @@ Int4
 		pv_array_bts,
 		global_size,
 		p_MBHashWrap->lookupArray);
-	getLastCudaError("gpu_blastn_scan_11_2mod4() execution failed.\n");
+	getLastCudaError("gpu_blastn_scan_Any_v3() execution failed.\n");
 	slogfile.KernelEnd();
 	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
 
@@ -864,30 +868,32 @@ Int4
 	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
 	Int4* scan_range)
 {
-	Int4 threadNum = 512;
-	Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
-	dim3 gridDim(blockNum, 1);
-	dim3 blockDim(threadNum, 1); 
+	if (total_hits > 0)
+	{
+		Int4 threadNum = 512;
+		Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
+		dim3 gridDim(blockNum, 1);
+		dim3 blockDim(threadNum, 1); 
 
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
+		checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
 
-	slogfile.KernelStart();	 
-	kernel_lookupInBigHashTable_v3<<<gridDim,blockDim>>>(
-		p_MBHashWrap->hashtable,
-		p_MBHashWrap->next_pos,
-		total_hits,
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		p_scanMultiDBAuxWrap->over_hits_num,
-		p_MBHashWrap->next_pos_len
-		);
+		slogfile.KernelStart();	 
+		kernel_lookupInBigHashTable_v3<<<gridDim,blockDim>>>(
+			p_MBHashWrap->hashtable,
+			p_MBHashWrap->next_pos,
+			total_hits,
+			p_scanMultiDBAuxWrap->offsetPairs,
+			p_scanMultiDBAuxWrap->over_offset_pairs,
+			p_scanMultiDBAuxWrap->over_hits_num,
+			p_MBHashWrap->next_pos_len
+			);
 
-	getLastCudaError("kernel_lookupInBigHashTable() execution failed.\n");
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime(), false );
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits, false);
-
+		getLastCudaError("kernel_lookupInBigHashTable_v3() execution failed.\n");
+		slogfile.KernelEnd();
+		slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime(), false );
+		checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
+		slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits, false);
+	}
 	return total_hits;
 }
 Int4 
