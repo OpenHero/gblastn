@@ -5,7 +5,10 @@ G-BLASTN can produce exactly the same results as NCBI-BLAST, and it also has ver
 commands. It also supports a pipeline mode, which can fully utilize the GPU and CPU resources 
 when handling a batch of medium to large sized queries.
 
-G-BLASTN is free software.
+G-BLASTN is free software and you can browse/download the source code at:
+https://sourceforge.net/p/gblastn
+or
+https://github.com/OpenHero/gblastn
 
 News: 
 1.1 version release support NCBI-BLAST 2.2.28.
@@ -27,12 +30,13 @@ G-BLASTN directly modifies NCBI-BLAST 2.2.28 by adding GPU functionality. To ins
 you can:
 
 
-1) Download gpu_blastn.tar.gz from http://sourceforge.net/projects/gblastn/ or https://github.com/OpenHero/gblastn/releases
+1) Download gblastn.1.1.tar.gz from https://github.com/OpenHero/gblastn/archive/gblastn.1.1.tar.gz
 and unpack the package:
 
 For example, on 64-bit Linux:
 
->tar zxvf gpu_blastn.tar.gz
+>tar zxvf gblastn.1.1.tar.gz
+>cd gblastn.1.1
 >chmod +x install
 
 2) Install G-BLASTN
