@@ -22,6 +22,7 @@ Requirement:
 ============
 1). Nvidia GPU card compute capability > 1.3
 2). CUDA5.5 version. https://developer.nvidia.com/cuda-toolkit
+3). 64bit system
 
 II. Installation instructions
 =============================
