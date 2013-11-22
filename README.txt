@@ -30,12 +30,12 @@ G-BLASTN directly modifies NCBI-BLAST 2.2.28 by adding GPU functionality. To ins
 you can:
 
 
-1) Download gblastn.1.1.tar.gz from https://github.com/OpenHero/gblastn/archive/gblastn.1.1.tar.gz
+1) Download v1.1.tar.gz of gblastn from https://github.com/OpenHero/gblastn/archive/v1.1.tar.gz
 and unpack the package:
 
 For example, on 64-bit Linux:
 
->tar zxvf gblastn.1.1.tar.gz
+>tar zxvf v1.1.tar.gz
 >cd gblastn.1.1
 >chmod +x install
 
