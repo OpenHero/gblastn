@@ -36,7 +36,7 @@ and unpack the package:
 
 For example, on 64-bit Linux:
 
->tar zxvf v1.1.tar.gz
+>tar zxvf v1.1
 >cd gblastn.1.1
 >chmod +x install
 
