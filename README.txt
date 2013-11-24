@@ -3,7 +3,8 @@
 G-BLASTN is a GPU-accelerated nucleotide alignment tool based on the widely used NCBI-BLAST. 
 G-BLASTN can produce exactly the same results as NCBI-BLAST, and it also has very similar user 
 commands. It also supports a pipeline mode, which can fully utilize the GPU and CPU resources 
-when handling a batch of medium to large sized queries.
+when handling a batch of queries. G-BLASTN supports megablast and blastn mode. The discontiguous
+megablast mode is currently not supported.
 
 G-BLASTN is free software and you can browse/download the source code at:
 https://sourceforge.net/p/gblastn
@@ -11,7 +12,7 @@ or
 https://github.com/OpenHero/gblastn
 
 News: 
-1.1 version release support NCBI-BLAST 2.2.28.
+1.1 version release is built on NCBI-BLAST 2.2.28.
 
 I. Supported features
 =====================
@@ -20,15 +21,13 @@ NVIDIA GPUs GTX680, GTX780, and Quadro K5000.
 
 Requirement:
 ============
-1). Nvidia GPU card compute capability > 1.3
+1). Nvidia GPU card with compute capability > 1.3
 2). CUDA5.5 version. https://developer.nvidia.com/cuda-toolkit
-3). 64bit system
 
 II. Installation instructions
 =============================
 
-G-BLASTN directly modifies NCBI-BLAST 2.2.28 by adding GPU functionality. To install G-BLASTN, 
-you can:
+G-BLASTN directly modifies NCBI-BLAST by adding GPU functionality. To install G-BLASTN, you can:
 
 
 1) Download v1.1.tar.gz of gblastn from https://github.com/OpenHero/gblastn/archive/v1.1.tar.gz
@@ -36,7 +35,7 @@ and unpack the package:
 
 For example, on 64-bit Linux:
 
->tar zxvf v1.1
+>tar zxvf v1.1.tar.gz
 >cd gblastn.1.1
 >chmod +x install
 
@@ -63,24 +62,21 @@ Acknowledgement: The installation configuration of G-BLASTN is based on that of 
 
 3) The G-BLASTN 
 
-If there is no error.
-You can get the binary G-BLASTN file "blastn" in directory "/ncbi-blast-2.2.28+-src/c++/GCC447-ReleaseMT64/bin/".
-Then move the "blastn" file into "bin" directy show as below(IV. Example) with command "mv".
-In the "/ncbi-blast-2.2.28+-src/c++/GCC447-ReleaseMT64/bin/" directory:
+If there is no error, you can get the binary G-BLASTN file "blastn" in directory "/ncbi-blast-2.2.28+-src/c++/GCC447-ReleaseMT64/bin/".
+Then move the "blastn" file into "bin" directy by command "mv" as follows:
+
+First go to the "/ncbi-blast-2.2.28+-src/c++/GCC447-ReleaseMT64/bin/" directory, then type
 
 >mv blastn /home/blsatn/bin/gblastn
 
 III. How to use G-BLASTN
 ========================
 
-If the above process is successful, the NCBI-BLAST installed will offer the
-additional option of using G-BLASTN. The interface of G-BLASTN is identical
-to the original NCBI-BLAST interface with the following additional options
-for "blastn":
+The interface of G-BLASTN is almost identical to the original NCBI-BLAST with the following additional options:
 
  *** GPU options
  -use_gpu <true|false>
-   Use 'true' to enable GPU for blastn
+   Use 'true' to enable GPU for gblastn
    Default = 'false'
  -mode <1|2>
    1.normal mode, 2.pipeline mode
@@ -92,11 +88,11 @@ for "blastn":
 IV. Example:
 ============
 
-1) In the work directory, we can make some sub-directory:	
+1) In the work directory, we can make some sub-directories:	
 .
 ├── bin
 │   ├── blastn          # the orignal blastn
-│   └── gblastn         # the G-BLASTN, you can copy the binary blastn into this direcotry, and change the name to gblastn; 
+│   └── gblastn         # the G-BLASTN (you need to copy the compiled binary "blastn" into this direcotry, and rename to "gblastn" or others; 
 ├── blast
 │   └── src
 │       └── gpu
@@ -105,7 +101,7 @@ IV. Example:
 │           ├── log
 │           ├── ncbi-blast-2.2.28+-src
 │           └── 2.28.zip
-├── data                # nt database
+├── data                # NCBI nt database
 │   └── nt2m
 │       ├── nohup.out
 │       ├── nt.2m.00.nhr
@@ -178,8 +174,8 @@ $blastn -db $database -window_masker_db $maskdb -query_list $query_list -outfmt 
 echo "***************complete*****************"
 ###################################################################################################################
 
-3) The m.ls file
+3) The m.ls file contains the path names of all your queries, e.g.:
 
-Put the queris's path into this file:
+
 /home/blastn/query/queries/mouse/qmedium/query.195.fa
 /home/blastn/query/queries/mouse/qmedium/query.130.fa
