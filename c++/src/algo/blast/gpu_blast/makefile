@@ -2,7 +2,7 @@
 
 SHELL := /bin/bash
 
-NVCC_PATH := /usr/local/cuda-5.0/
+NVCC_PATH := /usr/local/cuda/
 
 CC	:= gcc
 CXX 	:= g++
