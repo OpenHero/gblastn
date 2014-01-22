@@ -6,6 +6,8 @@ commands. It also supports a pipeline mode, which can fully utilize the GPU and 
 when handling a batch of queries. G-BLASTN supports megablast and blastn mode. The discontiguous
 megablast mode is currently not supported.
 
+Paper: K. Zhao and X.-W. Chu, “G-BLASTN: Accelerating Nucleotide Alignment by Graphics Processors,” Oxford Bioinformatics, to appear
+
 G-BLASTN is free software and you can browse/download the source code at:
 https://sourceforge.net/p/gblastn
 or
