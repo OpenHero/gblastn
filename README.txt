@@ -8,7 +8,8 @@ megablast mode is currently not supported.
 
 Citation:
 
-K. Zhao and X.-W. Chu, “G-BLASTN: Accelerating Nucleotide Alignment by Graphics Processors”, Oxford, Bioinformatics, 2014. 
+K. Zhao and X.-W. Chu, “G-BLASTN: Accelerating Nucleotide Alignment by Graphics Processors”, Oxford, Bioinformatics, 2014.
+http://bioinformatics.oxfordjournals.org/content/early/2014/01/24/bioinformatics.btu047.abstract?keytype=ref&ijkey=FkuzgmzzPTJss9c 
 
 G-BLASTN is free software and you can browse/download the source code at:
 https://sourceforge.net/p/gblastn
