@@ -1,6 +1,8 @@
 #ifndef __GPU_BLASTN_SMALL_SCAN_KERNEL_V3_H__
 #define __GPU_BLASTN_SMALL_SCAN_KERNEL_V3_H__
 
+#include <stdio.h>
+
 #define SHARE_MEM_SMALL_SIZE 512
 
 #define USE_TEXTURE 1
@@ -193,8 +195,8 @@ __global__ void gpu_blastn_scan_8_4(const Uint8* subject,
 	__syncthreads();
 
 	Int4 init_index;
-	Int4 index;
-	Int2 s_temp_value;
+	//Int4 index;
+	//Int2 s_temp_value;
 
 	while(s_index < scan_range)
 	{
@@ -263,8 +265,8 @@ __global__ void gpu_blastn_scan_8_4_v1(Uint1* subject,
 	__syncthreads();
 
 	Int4 init_index;
-	Int4 index;
-	Int2 s_temp_value;
+	//Int4 index;
+	//Int2 s_temp_value;
 
 	while(s_index < scan_range)
 	{
@@ -319,8 +321,8 @@ __global__ void gpu_blastn_scan_8_4_v2(Uint4* subject,
 	__syncthreads();
 
 	Int4 init_index;
-	Int4 index;
-	Int2 s_temp_value;
+//	Int4 index;
+//	Int2 s_temp_value;
 
 	while(s_index < scan_range)
 	{
@@ -415,7 +417,7 @@ __global__ void gpu_blastn_scan_8_4_v3(Uint4* subject,
 		int op_len_2 = 0;
 		Uint1  *s = (Uint1 *)(subject + s_index);
 
-		Uint4 s_global_offset = scan_range_0 + (blockIdx.x*blockDim.x) << 4;
+//		Uint4 s_global_offset = scan_range_0 + (blockIdx.x*blockDim.x) << 4;
 		Uint2 s_off = threadIdx.x <<4;
 		Int4 init_index = s[0];
 		checkDataOpt(op_1, op_2,op_len_1, op_len_2, s[1], init_index, s_off);
@@ -650,8 +652,8 @@ __global__ void gpu_blastn_scan_8_4_v5(Uint8* subject,
 	__syncthreads();
 
 	Int4 init_index;
-	Int4 index;
-	Int2 s_temp_value;
+//	Int4 index;
+//	Int2 s_temp_value;
 
 	while(s_index < scan_range)
 	{
@@ -728,8 +730,15 @@ __device__ __inline__ void checkData_v2_1(
 	)
 {
 	init_index = init_index << 8 | s;
+	//Int4 index = init_index & kLutWordMask_8_4;	
+
 	Int4 index = init_index & 65535;//kLutWordMask_8_4;		
 
+	//Uint4 small_hash_value = cn_small_tb[index/32];
+	//Uint4 mask_value = 1 <<(index%32);
+
+	//if ((small_hash_value&mask_value) > 0)
+	{
 		Int2 s_temp_value = LOAD_INT2(index);
 
 		if (s_temp_value > -1)
@@ -743,7 +752,9 @@ __device__ __inline__ void checkData_v2_1(
 			Uint4 index_offset = atomicAdd(over_total_hit, 1);
 			over_offset_pairs[index_offset].qs_offsets.q_off = -s_temp_value;
 			over_offset_pairs[index_offset].qs_offsets.s_off = s_global_offset;
+			//over_total_hit++;
 		}
+	}
 
 	__syncthreads();
 
@@ -850,7 +861,7 @@ __device__ __inline__ void checkData_v2_2(
 	Uint4 mask_value = 1 << ( (index & 63) >> 1 );
 	if ((small_hash_value&mask_value) > 0)
 
-	//Uint4 mask_value = small_hash_value >> ( (index & 63) >> 1 );
+	//Uint4 mask_value = (small_hash_value >> ( (index & 63) >> 1 )) &1;
 	//if (mask_value)
 	{
 		Int4 s_temp_value = LOAD_INT2(index);
@@ -908,6 +919,223 @@ __global__ void gpu_blastn_scan_8_4_v2_2(Uint4* __restrict__ subject,
 
 		s_index += global_size;
 	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+//
+//////////////////////////////////////////////////////////////////////////
+__device__ __inline__ void checkData_v2_3(
+	Uint4 *sh_cnt,
+	BlastOffsetPair* offset_pairs,
+	Uint4 s_global_offset,
+	Uint1 s,
+	Int4& init_index,
+	BlastOffsetPair* over_offset_pairs,
+	Uint4* over_total_hit,	Uint4* small_tb
+	)
+{
+	init_index = init_index << 8 | s;
+	Int4 index = init_index & 65535;
+	
+	Uint4 small_hash_value = small_tb[index >> 5];
+
+	Uint4 mask_value = (small_hash_value >> ( index & 31)) &1;
+	if (mask_value)
+	{
+		Int4 s_temp_value = LOAD_INT2(index);
+		if (s_temp_value > -1)
+		{  
+			Uint4 index_offset = atomicAdd(sh_cnt, 1);
+			offset_pairs[index_offset].qs_offsets.q_off = s_temp_value;
+			offset_pairs[index_offset].qs_offsets.s_off = s_global_offset;
+		}
+		if(s_temp_value < -1)
+		{
+			Uint4 index_offset = atomicAdd(over_total_hit, 1);
+			over_offset_pairs[index_offset].qs_offsets.q_off = -s_temp_value;
+			over_offset_pairs[index_offset].qs_offsets.s_off = s_global_offset;
+		}
+	}
+}
+
+__constant__ Uint4 cn_big_tb[2048];
+
+__global__ void gpu_blastn_scan_8_4_v2_3(Uint4* __restrict__ subject,
+	BlastOffsetPair* NCBI_RESTRICT offset_pairs, 
+	BlastOffsetPair* NCBI_RESTRICT l_off,
+	Uint4* total_hit,
+	Uint4* l_len,
+	Uint4 scan_range,
+	Uint4 scan_range_0,
+	Uint4 global_size,
+	Int2* d_backbone)
+{
+	Uint4 s_index = blockIdx.x*blockDim.x +threadIdx.x;
+	__shared__ Uint4 sh_small_tb[2048];
+
+#pragma unroll
+	for (int i = 0; i < 4; i++)
+	{
+		sh_small_tb[i*blockDim.x+threadIdx.x] = cn_big_tb[i*blockDim.x+threadIdx.x];
+	}
+	__syncthreads();
+
+	Int4 init_index;
+
+	while(s_index < scan_range)
+	{
+		Uint4 s_global_offset = scan_range_0 + s_index << 4;
+		Uint4  s1 = subject[s_index];
+		Uint4  s2 = subject[s_index+1];
+		Uint1* s= (Uint1*)&s1;
+
+		init_index = s[0];
+		checkData_v2_3(total_hit, offset_pairs, s_global_offset, s[1], init_index, l_off, l_len, sh_small_tb);		
+		s_global_offset += 4;
+		checkData_v2_3(total_hit, offset_pairs, s_global_offset, s[2], init_index, l_off, l_len, sh_small_tb);
+		s_global_offset += 4;
+		checkData_v2_3(total_hit, offset_pairs, s_global_offset, s[3], init_index, l_off, l_len, sh_small_tb);
+		s_global_offset += 4;
+		checkData_v2_3(total_hit, offset_pairs, s_global_offset, s2 &255, init_index, l_off, l_len, sh_small_tb);
+
+		s_index += global_size;
+	}
+}
+
+////
+//////////////////////////////////////////////////////////////////////////
+//
+//////////////////////////////////////////////////////////////////////////
+__device__ __inline__ void checkData_v2_4(
+	Uint4 *sh_cnt,
+	BlastOffsetPair* offset_pairs,
+	Uint4 s_global_offset,
+	Uint1 s,
+	Int4& init_index,
+	Uint4* small_tb,
+	clock_t* t
+	)
+{
+	t[3]= clock();
+	init_index = init_index << 8 | s;
+	t[4]=clock();
+	Int4 index = init_index & 65535;
+	t[5]= clock();
+	Uint4 small_hash_value = small_tb[index >> 5];
+	t[6]= clock();
+
+	Uint4 mask_value = (small_hash_value >> ( index & 31)) &1;
+	if (!mask_value)
+	{
+		t[7] = clock();
+		Uint4 index_offset = atomicAdd(sh_cnt, 1);
+		t[8] = clock();
+		offset_pairs[index_offset].qs_offsets.q_off = index;
+		offset_pairs[index_offset].qs_offsets.s_off = s_global_offset;
+		t[9]= clock();
+	}
+}
+
+__global__ void gpu_blastn_scan_8_4_v2_4(Uint4* __restrict__ subject,
+	BlastOffsetPair* NCBI_RESTRICT offset_pairs, 
+	Uint4* total_hit,
+	Uint4 scan_range,
+	Uint4 scan_range_0,
+	Uint4 global_size,
+	Int2* d_backbone)
+{
+	Uint4 s_index = blockIdx.x*blockDim.x +threadIdx.x;
+	__shared__ Uint4 sh_small_tb[2048];
+
+	clock_t t[12]={0};
+	//if(threadIdx.x == 0)
+		t[0]=clock();//printf("start:%d\n",clock());
+	//if(s_index < 32)
+		sh_small_tb[threadIdx.x] = cn_big_tb[threadIdx.x];
+//#pragma unroll
+	//for (int i = 0; i < 1; i++)
+	//{
+	//	sh_small_tb[i*blockDim.x+threadIdx.x] = cn_big_tb[i*blockDim.x+threadIdx.x];
+	//}
+	//__syncthreads();
+	//if(threadIdx.x == 0)
+		t[1]=clock();//printf("start:%d\n",clock());
+
+	Int4 init_index;
+	Int4 index[4]={0};
+	Uint4 small_hash_value;
+	Uint4 mask_value[4]={0};
+	Uint4 index_offset;
+	//while(s_index < scan_range)
+	//{
+		Uint4 s_global_offset = scan_range_0 + s_index << 4;
+		Uint4  s_t = subject[s_index];
+		Uint4  s_t2 = subject[s_index+1];
+		Uint1* s= (Uint1*)&s_t;
+		Uint1 s1 = s[1];
+		Uint1 s2 = s[2];
+		Uint1 s3 = s[3];
+		Uint1 s4 = (Uint1)s_t2;
+
+		//if(threadIdx.x == 0)
+		t[2]=clock();//printf("start:%d\n",clock());
+
+		init_index = s[0];
+		init_index = init_index * 256 + s1;//[1];
+		index[0] = init_index & 65535;
+
+		init_index = s[0];
+		init_index = init_index * 256 + s2;//[1];
+		index[1] = init_index & 65535;
+
+		init_index = s[0];
+		init_index = init_index * 256 + s3;//[1];
+		index[2] = init_index & 65535;
+
+		init_index = s[0];
+		init_index = init_index * 256 + s4;//[1];
+		index[3] = init_index & 65535;
+
+		t[3]= clock();
+		
+		for(int i = 0; i < 4; i++)
+		{
+			small_hash_value = sh_small_tb[index[i] >> 5];
+			mask_value[i] = (small_hash_value >> ( index[i] & 31)) &1;
+		}
+
+		t[4] = clock();
+
+		for(int i = 0; i < 4; i++)
+		//if (!mask_value[i])
+		{
+			index_offset = atomicAdd(total_hit, 1);
+			offset_pairs[index_offset].qs_offsets.q_off = index[i];
+			offset_pairs[index_offset].qs_offsets.s_off = s_global_offset;
+			s_global_offset += 4;
+		}
+
+		//checkData_v2_4(total_hit, offset_pairs, s_global_offset, s[1], init_index, sh_small_tb, t);		
+		//s_global_offset += 4;
+		//checkData_v2_4(total_hit, offset_pairs, s_global_offset, s[2], init_index, sh_small_tb, t);
+		//s_global_offset += 4;
+		//checkData_v2_4(total_hit, offset_pairs, s_global_offset, s[3], init_index, sh_small_tb, t);
+		//s_global_offset += 4;
+		//checkData_v2_4(total_hit, offset_pairs, s_global_offset, s2 &255, init_index, sh_small_tb,t );
+		
+		t[5]=clock();
+
+		if(threadIdx.x == 0)
+		{
+			//printf("start:%d\n",clock());
+		
+			for(int i = 1; i < 6; i++)
+				printf("%d\t", t[i]-t[i-1]);
+			//printf("\n");
+		}
+		s_index += global_size;
+	//}
 }
 
 

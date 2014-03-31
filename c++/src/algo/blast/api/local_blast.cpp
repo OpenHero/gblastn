@@ -184,9 +184,11 @@ CLocalBlast::Run()
         m_PrelimSearch->SetNumberOfThreads(GetNumberOfThreads());
 		//////////////////////////////////////////////////////////////////////////
 		//added by kyzhao for gpu blastn 
-		__int64 c1 = slogfile.Start();
+		__int64 c1 = slogfile.NewStart(true);
         m_InternalData = m_PrelimSearch->Run();
-		__int64 c2 = slogfile.End();
+		__int64 c2 = slogfile.NewEnd(true);
+		double total_time = slogfile.elaplsedTime(c1, c2);
+		cout << total_time <<"\t";
 		slogfile.addTotalTime("Total PrelimSearch Time", c1, c2, false);
 		//////////////////////////////////////////////////////////////////////////
 
@@ -260,9 +262,11 @@ CLocalBlast::Run()
     }
 	//////////////////////////////////////////////////////////////////////////
 	// added by kyzhao for gpu blastn trackback search
-	__int64 c1 = slogfile.Start();
+	__int64 c1 = slogfile.NewStart(true);
     CRef<CSearchResultSet> retval = m_TbackSearch->Run();
-	__int64 c2 = slogfile.End();
+	__int64 c2 = slogfile.NewEnd(true);
+	double total_time = slogfile.elaplsedTime(c1, c2);
+	cout << total_time <<"\t";
 	slogfile.addTotalTime("Total Traceback Time", c1, c2, false);
 	//////////////////////////////////////////////////////////////////////////
 	

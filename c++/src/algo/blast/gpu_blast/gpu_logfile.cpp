@@ -153,7 +153,7 @@ void CLogFile::addTotalTime(string id, double time, bool is_print)
 
 	if (is_print)
 	{
-		m_file << id << "\t" << time <<"\n"; 
+		cout << id << "\t" << time <<"\t"; 
 	}	
 #if LOG_TIME	
 	timemap::iterator itr = total_time_map.find(id);
@@ -182,7 +182,7 @@ void CLogFile::addTotalNum(string id, long in_num, bool is_print)
 #if LOG_TIME
 	if (is_print)
 	{
-		m_file << id << "\t" << in_num <<"\n"; 
+		cout << id << "\t" << in_num <<"\n"; 
 	}	
 
 	numbermap::iterator itr = total_num_map.find(id);
@@ -230,10 +230,6 @@ string argstime[] = {"Total Time",
 
 	"aux_struct->WordFinder Time",
 	"aux_struct->GetGappedScore",
-
-	"Scan function time",
-	"Extend function time",
-	
 	"Hits extend time",
 
 	"Scan CPU -> GPU Memory Time",
@@ -247,7 +243,7 @@ string argstime[] = {"Total Time",
 	//"kernel_s_BlastSmallExtend Time",
 	"GPU->CPU memory Time"};
 
-const int argstime_num = 19;
+const int argstime_num = 17;
 
 string argnum[] ={"lookup_hits",
 	"good_init_extends",

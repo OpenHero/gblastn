@@ -66,6 +66,8 @@ public:
 	void ThreadReplaceGPU();
 
 	GpuData* GetCurrentThreadGPUData();
+
+	bool b_useGpu;
 protected:
 	
 private:
@@ -73,7 +75,6 @@ private:
 	queue<int> q_gpu_ids;
 	ThreadGPUMapType mt_GPU;
 
-	bool b_useGpu;
 	GPUDataMapType m_GpuData;
 	ThreadLock mt_lock;
 

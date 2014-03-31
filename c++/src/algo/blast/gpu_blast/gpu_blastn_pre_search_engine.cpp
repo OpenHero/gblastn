@@ -1123,7 +1123,8 @@ s_AdjustSubjectForSraSearch(BlastHSPList* hsp_list, Uint1 offset )
 
 
 Int4 
-BLAST_PreliminarySearchEngine(bool is_gpu_thread,
+BLAST_PreliminarySearchEngine(bool is_use_gpu,
+	bool is_gpu_thread,
 	EBlastProgramType program_number, 
     BLAST_SequenceBlk* query, BlastQueryInfo* query_info,
     const BlastSeqSrc* seq_src, BlastGapAlignStruct* gap_align,
@@ -1245,6 +1246,7 @@ BLAST_PreliminarySearchEngine(bool is_gpu_thread,
     /* iterate over all subject sequences */
     while ( (seq_arg.oid = BlastSeqSrcIteratorNext(seq_src, itr)) 
            != BLAST_SEQSRC_EOF) {
+	   
        Int4 stat_length;
        if (seq_arg.oid == BLAST_SEQSRC_ERROR)
            break;
@@ -1253,6 +1255,16 @@ BLAST_PreliminarySearchEngine(bool is_gpu_thread,
                check_index_oid( seq_arg.oid, &last_vol_idx ) == eNoResults ) {
            continue;
        }
+
+#if 0
+  Int4 len = BlastSeqSrcGetSeqLen(seq_src, &seq_arg.oid);
+	   if (is_use_gpu && is_gpu_thread)
+	   {
+		   if (len <333000000) continue;		   
+	   }
+#endif
+	   
+
 
        if (BlastSeqSrcGetSequence(seq_src, &seq_arg) < 0)
            continue;
@@ -1271,6 +1283,7 @@ BLAST_PreliminarySearchEngine(bool is_gpu_thread,
 
       stat_length = seq_arg.seq->length; 
 
+	  //printf("%d\t%d\n",seq_arg.oid, stat_length);// <<endl;
 	  //////////////////////////////////////////////////////////////////////////
 	  //gpu start
 	  if (is_gpu_thread)
@@ -1278,7 +1291,7 @@ BLAST_PreliminarySearchEngine(bool is_gpu_thread,
 		  if (lookup_wrap->lut_type == eSmallNaLookupTable) 
 		  {	
 			  BlastSmallNaLookupTable *lookup = (BlastSmallNaLookupTable*)lookup_wrap->lut;
-			  if (stat_length >1000000)
+			  if (stat_length > 500000)
 			  {
 				  lookup->scansub_callback = new_lp_cb;
 				  lookup->extend_callback = new_lp_et;
@@ -1495,6 +1508,7 @@ Blast_gpu_RunPreliminarySearchWithInterrupt(EBlastProgramType program,
 	bool is_gpu_thread = false;
 	int gpu_id;
 	BlastMGPUUtil.ThreadFetchGPU(gpu_id);
+	
 	//cout << "Thread: " << GetCurrentThreadId() << ": gpu_id :" << gpu_id << endl;
 	//cout << "gpu_id :" << gpu_id << endl;
 	LookupTableWrap* p_lookup_wrap_back = lookup_wrap;
@@ -1510,7 +1524,7 @@ Blast_gpu_RunPreliminarySearchWithInterrupt(EBlastProgramType program,
 
 
     if ((status=
-        BLAST_PreliminarySearchEngine(is_gpu_thread,
+        BLAST_PreliminarySearchEngine(BlastMGPUUtil.b_useGpu, is_gpu_thread,
 		program, query, query_info, 
                                       seq_src, gap_align, score_params, 
                                       lookup_wrap, word_options, 

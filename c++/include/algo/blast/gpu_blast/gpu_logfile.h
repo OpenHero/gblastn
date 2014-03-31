@@ -7,7 +7,7 @@
 #else
 #include <sys/timeb.h>
 #define __int64 long long
-#define time_type long long 
+#define time_type __int64 
 #endif
 
 #define LOG_TIME 0

@@ -443,7 +443,7 @@ __global__ void gpu_blastn_scan_11_1mod4_opt(
 	}
 
 #define LOCAL_LEN 16
-#define BLOCK_SIZE_V1 256
+#define BLOCK_SIZE_V1 512
 
 __global__ void gpu_blastn_scan_11_1mod4_opt_v1(
 	Uint4* subject,
@@ -526,7 +526,7 @@ __global__ void gpu_blastn_scan_11_1mod4_opt_v1(
 			s++;
 
 		}
-/*
+
 		for (int i = 0; i < LOCAL_LEN; i++)
 		{
 			if (i < l_n)
@@ -557,7 +557,6 @@ __global__ void gpu_blastn_scan_11_1mod4_opt_v1(
 				__syncthreads();
 			}
 		}
-*/
 		s_index += global_size;
 	}
 

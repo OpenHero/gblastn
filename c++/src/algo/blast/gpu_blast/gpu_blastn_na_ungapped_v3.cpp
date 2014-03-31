@@ -618,7 +618,9 @@ void GpuLookUpSetUp(LookupTableWrap * lookup_wrap)
 		else if (lookup->lut_word_length % COMPRESSION_RATIO == 0 &&
 			lookup->scan_step % COMPRESSION_RATIO == 0 &&
 			lookup->word_length - lookup->lut_word_length <= 4)
-			lookup->extend_callback = (void *)s_gpu_BlastSmallNaExtendAlignedOneByte;
+			{
+				lookup->extend_callback = (void *)s_gpu_BlastSmallNaExtendAlignedOneByte;
+		}
 		else
 			lookup->extend_callback = (void*)s_gpu_BlastSmallExtend_v3;
 	}

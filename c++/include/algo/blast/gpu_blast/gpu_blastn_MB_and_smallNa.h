@@ -45,6 +45,11 @@ Int4
 	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
 	Int4* scan_range);
 Int4 
+	s_gpu_BlastSmallNaScanSubject_8_4_v2(const LookupTableWrap* lookup_wrap,
+	const BLAST_SequenceBlk* subject,
+	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
+	Int4* scan_range);
+Int4 
 	s_gpu_BlastSmallNaExtendAlignedOneByte(BlastOffsetPair * offset_pairs, Int4 num_hits,
 	const BlastInitialWordParameters * word_params,
 	LookupTableWrap * lookup_wrap,
