@@ -4,7 +4,7 @@
 #include <algo/blast/gpu_blast/thread_work_queue.hpp>
 //
 #include <map>
-#include <queue>
+#include <stack>
 #include <string>
 
 #ifdef WIN32
@@ -72,7 +72,7 @@ protected:
 	
 private:
 	int i_GPU_N;
-	queue<int> q_gpu_ids;
+	stack<int> q_gpu_ids;
 	ThreadGPUMapType mt_GPU;
 
 	GPUDataMapType m_GpuData;

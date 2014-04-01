@@ -35,7 +35,7 @@ int GpuBlastMultiGPUsUtils::InitGPUs(bool use_gpu, int gpu_id)
 		cudaDeviceProp deviceProp;
 		checkCudaErrors(cudaGetDeviceProperties(&deviceProp, i));
 		 int version = deviceProp.major * 10 + deviceProp.minor;
-		if (version > 13)
+		if (version > 30)
 		{
 			candidate_list.push_back(i);
 		}
@@ -87,7 +87,7 @@ void GpuBlastMultiGPUsUtils::ReleaseGPUs()
 	{
 		while(!q_gpu_ids.empty())
 		{
-			int gpu_id = q_gpu_ids.front();
+			int gpu_id = q_gpu_ids.top();
 			checkCudaErrors(cudaSetDevice(gpu_id));
 
 			GPUDataMapType::iterator itr = m_GpuData.find(gpu_id);
@@ -137,7 +137,7 @@ void GpuBlastMultiGPUsUtils::ThreadFetchGPU(int & gpu_id)
 		{
 			if (q_gpu_ids.size() > 0)
 			{
-				gpu_id = q_gpu_ids.front();
+				gpu_id = q_gpu_ids.top();
 				mt_GPU.insert(ThreadGPUMapPairType(p_thread_id, gpu_id));
 				checkCudaErrors(cudaSetDevice(gpu_id));
 				string thread_name = "GPU thread ";
