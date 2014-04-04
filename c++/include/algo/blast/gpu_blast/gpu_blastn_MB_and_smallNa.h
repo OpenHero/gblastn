@@ -91,6 +91,12 @@ Int4
 	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
 	Int4* scan_range);
 //////////////////////////////////////////////////////////////////////////
+Int4 s_gpu_MB_DiscWordScanSubject_11_18_1(
+	const LookupTableWrap* lookup_wrap, 
+	const BLAST_SequenceBlk* subject,
+	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits, 
+	Int4* scan_range);
+//////////////////////////////////////////////////////////////////////////
 ///MiniExtend
 //////////////////////////////////////////////////////////////////////////
 Int4 

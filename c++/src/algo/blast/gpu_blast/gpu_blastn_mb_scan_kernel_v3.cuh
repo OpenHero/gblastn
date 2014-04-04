@@ -578,4 +578,190 @@ __global__ void gpu_blastn_scan_11_1mod4_opt_v1(
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////////////////
+/*
+   const Int4 kTemplateLength = 18;
+   Uint4 lo = 0; 
+   Uint4 hi = 0;
+
+
+
+   index = scan_range[0] - (scan_range[0] % COMPRESSION_RATIO);
+   while(index < scan_range[0] + kTemplateLength) {
+      hi = (hi << 8) | (lo >> 24);
+      lo = lo << 8 | *s++;
+      index += COMPRESSION_RATIO;
+   }
+
+   switch (index - (scan_range[0] + kTemplateLength)) {
+   case 1: 
+       goto base_3;
+   case 2: 
+       goto base_2;
+   case 3: 
+       s--;
+       lo = (lo >> 8) | (hi << 24);
+       hi = hi >> 8;
+       goto base_1;
+   }
+
+   while (scan_range[0] <= scan_range[1]) {
+
+      index = ((lo & 0x00000003)      ) |
+              ((lo & 0x000000f0) >>  2) |
+              ((lo & 0x00003c00) >>  4) |
+              ((lo & 0x00030000) >>  6) |
+              ((lo & 0x03c00000) >> 10) |
+              ((lo & 0xf0000000) >> 12) |
+              ((hi & 0x0000000c) << 18);
+      MB_ACCESS_HITS();
+      scan_range[0]++;
+
+base_1:
+      if (scan_range[0] > scan_range[1])
+         break;
+
+      hi = (hi << 8) | (lo >> 24);
+      lo = lo << 8 | *s++;
+
+      index = ((lo & 0x000000c0) >>  6) |
+              ((lo & 0x00003c00) >>  8) |
+              ((lo & 0x000f0000) >> 10) |
+              ((lo & 0x00c00000) >> 12) |
+              ((lo & 0xf0000000) >> 16) |
+              ((hi & 0x0000003c) << 14) |
+              ((hi & 0x00000300) << 12);
+      MB_ACCESS_HITS();
+      scan_range[0]++;
+
+base_2:
+      if (scan_range[0] > scan_range[1])
+         break;
+
+      index = ((lo & 0x00000030) >>  4) |
+              ((lo & 0x00000f00) >>  6) |
+              ((lo & 0x0003c000) >>  8) |
+              ((lo & 0x00300000) >> 10) |
+              ((lo & 0x3c000000) >> 14) |
+              ((hi & 0x0000000f) << 16) |
+              ((hi & 0x000000c0) << 14);
+      MB_ACCESS_HITS();
+      scan_range[0]++;
+
+base_3:
+      if (scan_range[0] > scan_range[1])
+         break;
+
+      index = ((lo & 0x0000000c) >>  2) |
+              ((lo & 0x000003c0) >>  4) |
+              ((lo & 0x0000f000) >>  6) |
+              ((lo & 0x000c0000) >>  8) |
+              ((lo & 0x0f000000) >> 12) |
+              ((lo & 0xc0000000) >> 14) |
+              ((hi & 0x00000003) << 18) |
+              ((hi & 0x00000030) << 16);
+      MB_ACCESS_HITS();
+      scan_range[0]++;
+   }
+   return total_hits;
+*/
+__global__ void s_gpu_MB_DiscWordScanSubject_11_18_1(
+	Uint1* subject,
+	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Uint4* total_hit /*max_hits*/,  
+	Uint4 scan_range,
+	Uint4 scan_range_0,
+	Int4 top_shift,
+	Int4 pv_array_bts,
+	Uint4 global_size,
+	PV_ARRAY_TYPE* d_lookupArray)
+{
+	Uint4 s_index = blockIdx.x*blockDim.x +threadIdx.x;
+	Uint4 g_offset = 0;
+
+	__shared__ BlastOffsetPair sh_offsetpair[SHARE_MEM_SIZE];
+	__shared__ Uint4 sh_cnt;
+	__shared__ Uint4 sh_global_i;
+
+
+	if (threadIdx.x == 0)
+	{
+		sh_cnt = 0;
+		sh_global_i = 0;
+	}
+	__syncthreads();
+
+	while(s_index < scan_range)
+	{
+		Uint4 lo = 0; 
+		Uint4 hi = 0;
+
+		Uint1* s = subject+ (s_index<<2);
+		g_offset = s_index << 2;
+
+		for(int i = 0; i < 5; i++)
+		{
+			hi = (hi << 8) | (lo >> 24);
+			lo = lo << 8 | *s++;
+		}
+		Int4 s_temp = ((lo & 0x00000030) >>  4) |
+              ((lo & 0x00000f00) >>  6) |
+              ((lo & 0x0003c000) >>  8) |
+              ((lo & 0x00300000) >> 10) |
+              ((lo & 0x3c000000) >> 14) |
+              ((hi & 0x0000000f) << 16) |
+              ((hi & 0x000000c0) << 14);		
+		checkResult(d_lookupArray, s_temp, scan_range_0, pv_array_bts, g_offset, sh_offsetpair, sh_cnt, sh_global_i, offset_pairs, total_hit);
+		
+		s_temp = ((lo & 0x0000000c) >>  2) |
+              ((lo & 0x000003c0) >>  4) |
+              ((lo & 0x0000f000) >>  6) |
+              ((lo & 0x000c0000) >>  8) |
+              ((lo & 0x0f000000) >> 12) |
+              ((lo & 0xc0000000) >> 14) |
+              ((hi & 0x00000003) << 18) |
+              ((hi & 0x00000030) << 16);
+		checkResult(d_lookupArray, s_temp, scan_range_0, pv_array_bts, g_offset+1, sh_offsetpair, sh_cnt, sh_global_i, offset_pairs, total_hit);
+
+		s_temp = ((lo & 0x00000003)      ) |
+              ((lo & 0x000000f0) >>  2) |
+              ((lo & 0x00003c00) >>  4) |
+              ((lo & 0x00030000) >>  6) |
+              ((lo & 0x03c00000) >> 10) |
+              ((lo & 0xf0000000) >> 12) |
+              ((hi & 0x0000000c) << 18);
+		checkResult(d_lookupArray, s_temp, scan_range_0, pv_array_bts, g_offset+2, sh_offsetpair, sh_cnt, sh_global_i, offset_pairs, total_hit);
+
+		hi = (hi << 8) | (lo >> 24);
+		lo = lo << 8 | *s++;
+
+		s_temp = ((lo & 0x000000c0) >>  6) |
+			((lo & 0x00003c00) >>  8) |
+			((lo & 0x000f0000) >> 10) |
+			((lo & 0x00c00000) >> 12) |
+			((lo & 0xf0000000) >> 16) |
+			((hi & 0x0000003c) << 14) |
+			((hi & 0x00000300) << 12);
+		checkResult(d_lookupArray, s_temp, scan_range_0, pv_array_bts, g_offset+3, sh_offsetpair, sh_cnt, sh_global_i, offset_pairs, total_hit);
+
+		s_index += global_size;
+	}
+
+	__syncthreads();
+	if (sh_cnt > 0)
+	{
+		int offset_id = threadIdx.x;
+
+		if (offset_id == 0)
+		{
+			sh_global_i = atomicAdd(total_hit, sh_cnt);
+
+		}
+		__syncthreads();
+		if (offset_id < sh_cnt)
+		{
+			offset_pairs[sh_global_i + offset_id] = sh_offsetpair[offset_id];
+		}
+	}
+}
+
 #endif 

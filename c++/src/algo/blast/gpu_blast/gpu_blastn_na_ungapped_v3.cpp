@@ -629,54 +629,63 @@ void GpuLookUpSetUp(LookupTableWrap * lookup_wrap)
 		BlastMBLookupTable *mb_lt = (BlastMBLookupTable*)lookup_wrap->lut;
 		ASSERT(lookup_wrap->lut_type == eMBLookupTable);
 
-		Int4 scan_step = mb_lt->scan_step;
 
-		switch (mb_lt->lut_word_length) {
-		case 9:
-			/*if (scan_step == 1)
-			;
-			if (scan_step == 2)
-			;
-			else*/
-			mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_Any_scankernel_Opt_v3;
-			break;
+		if (mb_lt->discontiguous) {
+			 if (mb_lt->template_type == eDiscTemplate_11_18_Coding)
+				mb_lt->scansub_callback = (void *)s_gpu_MB_DiscWordScanSubject_11_18_1;
+		}
+		else
+		{
+			Int4 scan_step = mb_lt->scan_step;
 
-		case 10:
-			/*if (scan_step == 1)
-			;
-			else if (scan_step == 2)
-			;
-			else if (scan_step == 3)
-			;
-			else*/
-			if (scan_step == 1)
-				mb_lt->scansub_callback = (void *)s_MBScanSubject_10_1;
-			else
+			switch (mb_lt->lut_word_length) {
+			case 9:
+				/*if (scan_step == 1)
+				;
+				if (scan_step == 2)
+				;
+				else*/
 				mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_Any_scankernel_Opt_v3;
-			break;
-
-		case 11:
-			switch (scan_step % COMPRESSION_RATIO) {
-			case 1:
-				//mb_lt->scansub_callback = (void *)s_MBScanSubject_11_1Mod4;
-				mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3;
 				break;
-			case 2:
-				mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_11_2Mod4_scankernel_Opt_v3;
-				//mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_11_2Mod4;		 // changed by kyzhao for gpu
+
+			case 10:
+				/*if (scan_step == 1)
+				;
+				else if (scan_step == 2)
+				;
+				else if (scan_step == 3)
+				;
+				else*/
+				if (scan_step == 1)
+					mb_lt->scansub_callback = (void *)s_MBScanSubject_10_1;
+				else
+					mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_Any_scankernel_Opt_v3;
+				break;
+
+			case 11:
+				switch (scan_step % COMPRESSION_RATIO) {
+				case 1:
+					//mb_lt->scansub_callback = (void *)s_MBScanSubject_11_1Mod4;
+					mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3;
+					break;
+				case 2:
+					mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_11_2Mod4_scankernel_Opt_v3;
+					//mb_lt->scansub_callback = (void *)s_gpu_MBScanSubject_11_2Mod4;		 // changed by kyzhao for gpu
+					break;
+				}
+				break;
+
+			case 12:
+				/* lookup tables of width 12 are only used
+				for very large queries, and the latency of
+				cache misses dominates the runtime in that
+				case. Thus the extra arithmetic in the generic
+				routine isn't performance-critical */
+				mb_lt->scansub_callback = (void*)s_gpu_MBScanSubject_Any_scankernel_Opt_v3;
 				break;
 			}
-			break;
-
-		case 12:
-			/* lookup tables of width 12 are only used
-			for very large queries, and the latency of
-			cache misses dominates the runtime in that
-			case. Thus the extra arithmetic in the generic
-			routine isn't performance-critical */
-			mb_lt->scansub_callback = (void*)s_gpu_MBScanSubject_Any_scankernel_Opt_v3;
-			break;
 		}
+
 
 		if (mb_lt->lut_word_length == mb_lt->word_length || mb_lt->discontiguous)
 			mb_lt->extend_callback = (void *)s_new_BlastNaExtendDirect;

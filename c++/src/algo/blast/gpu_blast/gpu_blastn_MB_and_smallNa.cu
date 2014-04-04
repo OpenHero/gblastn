@@ -1995,3 +1995,112 @@ Int4
 	}
 	return hits_extended;
 }
+
+
+///////////////////////////////////////////////////////////////////////////////
+//dis
+
+Int4 
+	s_gpu_MB_DiscWordScanSubject_11_18_1_p1(Uint4 scan_range_temp,
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
+	cudaMBHashAuxWrap* p_MBHashWrap,
+	const LookupTableWrap* lookup_wrap,
+	const BLAST_SequenceBlk* subject,
+	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
+	Int4* scan_range)
+{
+
+	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
+	Uint4 total_hits = 0;
+	Int4 top_shift =2; 
+	Int4 pv_array_bts = mb_lt->pv_array_bts;
+
+	int current_subject_id = subject->oid;
+
+	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //³õÊ¼»¯Îª0
+
+	static int blocksize_x = BLOCK_SIZE_V1;
+	dim3 blockSize(blocksize_x);
+	dim3 gridSize;
+	//scan_range_temp = (scan_range_temp/16) + (scan_range_temp%16);
+	scan_range_temp = scan_range_temp/16;
+	gridSize.x = (scan_range_temp-1/*+ blockSize.x -1*/)/blockSize.x;
+
+	static int max_grid_size = 16384;
+	if (gridSize.x > max_grid_size)
+	{
+		gridSize.x = max_grid_size;
+	}
+
+	Uint4 global_size = gridSize.x;
+	global_size *= blocksize_x;
+
+	slogfile.KernelStart();
+	//printf("%d %d\n", gridSize.x, blockSize.x);  
+	s_gpu_MB_DiscWordScanSubject_11_18_1<<< gridSize, blockSize >>>(
+		(Uint1*)p_scanMultiDBAuxWrap->subject[current_subject_id], 
+		p_scanMultiDBAuxWrap->offsetPairs, 
+		p_scanMultiDBAuxWrap->total_hits, 
+		scan_range_temp, 
+		scan_range[0], 
+		top_shift, 
+		pv_array_bts,
+		global_size,
+		p_MBHashWrap->lookupArray); 
+
+	getLastCudaError("gpu_blastn_scan_11_1mod4() execution failed.\n");
+
+	slogfile.KernelEnd();
+	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
+
+	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->total_hits, sizeof(Uint4), cudaMemcpyDeviceToHost));
+
+	return total_hits;
+}
+
+Int4 s_gpu_MB_DiscWordScanSubject_11_18_1(
+	const LookupTableWrap* lookup_wrap, 
+	const BLAST_SequenceBlk* subject,
+	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits, 
+	Int4* scan_range)
+{
+	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
+	Uint4 total_hits = 0;
+
+	max_hits -= mb_lt->longest_chain;
+	ASSERT(lookup_wrap->lut_type == eMBLookupTable);
+	ASSERT(mb_lt->lut_word_length == 11);
+	ASSERT(mb_lt->template_length == 18);
+	ASSERT(mb_lt->template_type == eDiscTemplate_11_18_Coding);
+	if(scan_range[0] > scan_range[1]) return 0;
+
+
+	Uint4 scan_range_temp = (scan_range[1]+mb_lt->template_length - scan_range[0]);
+
+	Uint4 subject_len = subject->length;
+	int current_subject_id = subject->oid;
+
+	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
+	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj->m_local;
+
+	slogfile.Start();
+	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
+	{
+		//cout <<"id:" << current_subject_id <<"\t";
+		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
+		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len)/4));
+		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
+	}
+	slogfile.End();
+	slogfile.addTotalTime("Scan CPU -> GPU Memory Time",slogfile.elaplsedTime(),false);
+
+	total_hits = s_gpu_MB_DiscWordScanSubject_11_18_1_p1(scan_range_temp, p_scanMultiDBAuxWrap, p_MBHashWrap, lookup_wrap,subject,offset_pairs,max_hits, scan_range);
+	//total_hits = s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_1(scan_range_temp, p_scanMultiDBAuxWrap, p_MBHashWrap, lookup_wrap,subject,offset_pairs,max_hits, scan_range);
+	total_hits = s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3_2(total_hits, p_scanMultiDBAuxWrap, p_MBHashWrap,lookup_wrap,subject,offset_pairs,max_hits, scan_range);
+
+	scan_range[0] = scan_range[1]+mb_lt->lut_word_length;
+
+	//exit(0); //
+	return total_hits;
+}
