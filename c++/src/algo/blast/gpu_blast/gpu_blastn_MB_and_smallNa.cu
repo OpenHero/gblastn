@@ -270,7 +270,9 @@ void ReleaseSmallQueryGPUMem()
 		checkCudaErrors(cudaFree(p_smallAuxWrap->query_compressed_nuc_seq_start));
 		checkCudaErrors(cudaFree(p_smallAuxWrap->overflowtable));
 		checkCudaErrors(cudaFree(p_smallAuxWrap->backbone));
+#if USE_SMALL_TEXTURE
 		checkCudaErrors(cudaUnbindTexture(tx_backbone));
+#endif
 		delete [] p_smallAuxWrap->h_small_table;
 		delete p_smallAuxWrap;		
 		gpu_obj->m_local = NULL;
@@ -1301,7 +1303,9 @@ void ReleaseMBQueryGPUMem()
 		checkCudaErrors(cudaFree(p_MBHashWrap->next_pos));
 		checkCudaErrors(cudaFree(p_MBHashWrap->query));
 		checkCudaErrors(cudaFree(p_MBHashWrap->lookupArray));
+#if USE_TEXTURE
 		checkCudaErrors(cudaUnbindTexture(tx_pv_array));
+#endif
 
 		delete p_MBHashWrap;		
 		gpu_obj->m_local = NULL;
@@ -2019,7 +2023,7 @@ Int4
 
 	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //³õÊ¼»¯Îª0
 
-	static int blocksize_x = BLOCK_SIZE_V1;
+	static int blocksize_x = SHARE_MEM_SIZE/2;
 	dim3 blockSize(blocksize_x);
 	dim3 gridSize;
 	//scan_range_temp = (scan_range_temp/16) + (scan_range_temp%16);
@@ -2033,7 +2037,7 @@ Int4
 	}
 
 	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
+	global_size *= blocksize_x*4;
 
 	slogfile.KernelStart();
 	//printf("%d %d\n", gridSize.x, blockSize.x);  
@@ -2048,7 +2052,7 @@ Int4
 		global_size,
 		p_MBHashWrap->lookupArray); 
 
-	getLastCudaError("gpu_blastn_scan_11_1mod4() execution failed.\n");
+	getLastCudaError("s_gpu_MB_DiscWordScanSubject_11_18_1() execution failed.\n");
 
 	slogfile.KernelEnd();
 	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);

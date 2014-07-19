@@ -3,11 +3,11 @@
 
 #include <corelib/ncbistl.hpp>
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #include <Windows.h>
 typedef  HANDLE ThreadHandle;
 typedef unsigned RETURN_INT;
-#endif // WIN32
+#endif // _MSC_VER
 
 #ifdef _LINUX
 #include <pthread.h>

@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 
-#ifndef WIN32
+#ifndef _MSC_VER
 time_type getSystemTime() {
 
 	struct timeval  start_time;
@@ -18,7 +18,7 @@ static cudaEvent_t start, stop;
 
 CLogFile::CLogFile()
 {
-#ifdef WIN32
+#ifdef _MSC_VER
 	QueryPerformanceFrequency(&large_interger); 
 	dff = (double)large_interger.QuadPart; 
 #endif
@@ -45,7 +45,7 @@ time_type CLogFile::NewStart(bool is_log)
 { 
 	if (is_log)
 	{
-#ifdef WIN32
+#ifdef _MSC_VER
 		QueryPerformanceCounter(&large_interger);  
 		c1 = large_interger.QuadPart;
 #else
@@ -59,7 +59,7 @@ time_type CLogFile::NewEnd(bool is_log)
 {
 	if (is_log)
 	{
-#ifdef WIN32
+#ifdef _MSC_VER
 		QueryPerformanceCounter(&large_interger);  
 		c2 = large_interger.QuadPart;
 #else
@@ -72,7 +72,7 @@ time_type CLogFile::NewEnd(bool is_log)
 time_type CLogFile::Start()
 {
 #if LOG_TIME
-#ifdef WIN32
+#ifdef _MSC_VER
 	QueryPerformanceCounter(&large_interger);  
 	c1 = large_interger.QuadPart;
 #else
@@ -86,7 +86,7 @@ time_type CLogFile::Start()
 time_type CLogFile::End()
 {
 #if LOG_TIME
-#ifdef WIN32
+#ifdef _MSC_VER
 	QueryPerformanceCounter(&large_interger);  
 	c2 = large_interger.QuadPart;
 #else
@@ -106,7 +106,7 @@ double CLogFile::printElaplsedTime(string id, time_type in_c1, time_type in_c2)
 
 double CLogFile::elaplsedTime(time_type in_c1, time_type in_c2)
 {
-#ifdef WIN32					  
+#ifdef _MSC_VER					  
 	return (double)(in_c2 - in_c1) * 1000 / dff;
 #else 
 	return (double)(in_c2- in_c1)/1000;
@@ -115,7 +115,7 @@ double CLogFile::elaplsedTime(time_type in_c1, time_type in_c2)
 
 double CLogFile::elaplsedTime()
 {
-#ifdef WIN32
+#ifdef _MSC_VER
 	return (double)(c2 - c1) * 1000 / dff;
 #else
 	return (double)(c2-c1)/1000;

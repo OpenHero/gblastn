@@ -7,7 +7,7 @@
 
 #define  USE_TEXTURE 1
 
-#if(USE_TEXTURE)
+#if USE_TEXTURE
 texture<PV_ARRAY_TYPE,1,cudaReadModeElementType> tx_pv_array;
 #define   LOAD_PV(i) tex1Dfetch(tx_pv_array, i)
 #define  SET_PVARRAY_BASE checkCudaErrors( cudaBindTexture(0, tx_pv_array, d_lookupArray) )
@@ -676,6 +676,7 @@ __global__ void s_gpu_MB_DiscWordScanSubject_11_18_1(
 	PV_ARRAY_TYPE* d_lookupArray)
 {
 	Uint4 s_index = blockIdx.x*blockDim.x +threadIdx.x;
+	s_index = s_index << 2;
 	Uint4 g_offset = 0;
 
 	__shared__ BlastOffsetPair sh_offsetpair[SHARE_MEM_SIZE];
@@ -695,8 +696,8 @@ __global__ void s_gpu_MB_DiscWordScanSubject_11_18_1(
 		Uint4 lo = 0; 
 		Uint4 hi = 0;
 
-		Uint1* s = subject+ (s_index<<2);
-		g_offset = s_index << 2;
+		Uint1* s = subject+ s_index;
+		g_offset = s_index;
 
 		for(int i = 0; i < 5; i++)
 		{

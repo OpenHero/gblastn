@@ -1,7 +1,7 @@
 ﻿#ifndef __GPU_LOGFILE_H__
 #define __GPU_LOGFILE_H__
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #include <Windows.h>
 #define time_type __int64
 #else
@@ -78,7 +78,7 @@ private:
 	//*************************
 
 	StopWatchInterface *timer;
-#ifdef WIN32
+#ifdef _MSC_VER
 
 	LARGE_INTEGER  large_interger;  
 #endif

@@ -35,7 +35,7 @@ int GpuBlastMultiGPUsUtils::InitGPUs(bool use_gpu, int gpu_id)
 		cudaDeviceProp deviceProp;
 		checkCudaErrors(cudaGetDeviceProperties(&deviceProp, i));
 		 int version = deviceProp.major * 10 + deviceProp.minor;
-		if (version > 30)
+		if (version >= 30)
 		{
 			candidate_list.push_back(i);
 		}

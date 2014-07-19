@@ -1,7 +1,7 @@
 #ifndef __WORK_QUEUE_HPP__
 #define __WORK_QUEUE_HPP__
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #include <windows.h>
 #else
 #include <pthread.h>
@@ -37,7 +37,7 @@ public:
 	pthread_mutex_t & GetMutex();
 #endif
 
-#ifdef WIN32 
+#ifdef _MSC_VER 
 	CRITICAL_SECTION  & GetMutex();
 #endif
 
@@ -51,7 +51,7 @@ private:
 	pthread_mutex_t   mutex_lock;
 #endif
 
-#ifdef WIN32 
+#ifdef _MSC_VER 
 	CRITICAL_SECTION  mutex_lock;
 #endif
 };
@@ -83,7 +83,7 @@ private:
 	pthread_cond_t	m_event;
 #endif 
 
-#ifdef WIN32
+#ifdef _MSC_VER
 	ThreadEvent() 
 	{
 		m_event = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -140,7 +140,7 @@ public:
 	} 
 #endif
 
-#ifdef WIN32
+#ifdef _MSC_VER
 	T remove() {
 		//m_tlock.SectionLock();
 		while (m_queue.size() == 0) {	 

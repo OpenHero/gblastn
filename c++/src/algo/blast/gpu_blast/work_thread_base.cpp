@@ -1,6 +1,6 @@
 #include <algo/blast/gpu_blast/work_thread_base.hpp>
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #include <process.h>
 #endif
 
@@ -14,12 +14,12 @@ static void* runThread(void* arg)
 }
 #endif // _LINUX
 
-#ifdef WIN32
+#ifdef _MSC_VER
 unsigned int __stdcall runThread( void* arg )
 {
 	return 	((WorkThreadBase*)arg)->run();
 }
-#endif // WIN32
+#endif // _MSC_VER
 
 WorkThreadBase::WorkThreadBase() : m_tid(0), m_running(0), m_detached(0) {}
 
@@ -29,9 +29,9 @@ WorkThreadBase::~WorkThreadBase()
 #ifdef _LINUX
 		pthread_cancel(m_thandle);
 #endif // _LINUX
-#ifdef WIN32
+#ifdef _MSC_VER
 		TerminateThread(m_thandle, 0);
-#endif // WIN32
+#endif // _MSC_VER
 	}
 	if (m_running == 1 && m_detached == 0) {
 		detach();
@@ -41,7 +41,7 @@ WorkThreadBase::~WorkThreadBase()
 int WorkThreadBase::start()
 {
 	int result = 0;
-#ifdef WIN32	
+#ifdef _MSC_VER	
 	m_thandle = (HANDLE)_beginthreadex(NULL, 0, runThread, this, 0, &m_tid);
 	if (0== m_thandle)
 	{
@@ -64,7 +64,7 @@ int WorkThreadBase::join()
 {
 	int result = -1;
 	if (m_running == 1) {
-#ifdef WIN32
+#ifdef _MSC_VER
 		if(WaitForSingleObject(m_thandle, INFINITE) == WAIT_OBJECT_0)
 		{
 			DWORD status;
@@ -77,7 +77,7 @@ int WorkThreadBase::join()
 				}
 			}
 		}
-#endif // WIN32
+#endif // _MSC_VER
 #ifdef _LINUX
 		result = pthread_join(m_thandle, NULL);
 #endif // _LINUX
@@ -93,7 +93,7 @@ int WorkThreadBase::detach()
 {
 	int result = -1;
 	if (m_running == 1 && m_detached == 0) {
-#ifdef WIN32
+#ifdef _MSC_VER
 		if(TRUE == CloseHandle(m_thandle))
 			result = 0;
 #endif

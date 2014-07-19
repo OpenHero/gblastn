@@ -423,7 +423,7 @@ int CBlastnApp::Run()
 			opts_hndl.Reset(&*m_CmdLineArgs->SetOptions(args));
 		}
 
-#if WIN32
+#if _MSC_VER
 		output = args[kArgOutput].AsString();
 		output = output.substr(0,output.find_last_of("\\")+1);
 #else
@@ -700,7 +700,7 @@ int CBlastnApp::Method1(const CBlastOptions& opt)
 					CArgDescriptions* arg_desc = m_CmdLineArgs->SetCommandLine();
 					unsigned int n_plain = kMax_UInt;
 					arg_desc->x_CreateArg("-query",true,line,&n_plain, args, true);
-#if WIN32
+#if _MSC_VER
 					string name = line.substr(line.find_last_of("\\")+1, line.length());
 #else
 					string name = line.substr(line.find_last_of("/")+1, line.length());
@@ -949,7 +949,7 @@ int CBlastnApp::Method2(const CBlastOptions& opt)
 						unsigned int n_plain = kMax_UInt;
 						arg_desc->x_CreateArg("-query",true,line,&n_plain, args, true);
 
-#if WIN32
+#if _MSC_VER
 						string name = line.substr(line.find_last_of("\\")+1, line.length());
 #else
 						string name = line.substr(line.find_last_of("/")+1, line.length());
@@ -1206,7 +1206,7 @@ int CBlastnApp::Method3(const CBlastOptions& opt)
 						CArgDescriptions* arg_desc = m_CmdLineArgs->SetCommandLine();
 						unsigned int n_plain = kMax_UInt;
 						arg_desc->x_CreateArg("-query",true,line,&n_plain, args, true);
-#if WIN32
+#if _MSC_VER
 						string name = line.substr(line.find_last_of("\\")+1, line.length());
 #else
 						string name = line.substr(line.find_last_of("/")+1, line.length());

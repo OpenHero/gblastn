@@ -1,6 +1,6 @@
 #include <algo/blast/gpu_blast/thread_work_queue.hpp>
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #define MS_VC_EXCEPTION 0x406D1388
 
 #pragma pack(push,8)
@@ -46,7 +46,7 @@ static void SetThreadName( unsigned long dwThreadID, char* threadName)
 unsigned long ThreadLock::GetCurrentThreadID()
 {
 	unsigned long p_thread_id = 0;
-#ifdef WIN32
+#ifdef _MSC_VER
 	p_thread_id = GetCurrentThreadId();
 #else
 	p_thread_id = pthread_self();
@@ -66,7 +66,7 @@ void ThreadLock::SectionLock()
 #ifdef _LINUX
 	pthread_mutex_lock(&mutex_lock);
 #endif
-#ifdef WIN32						  
+#ifdef _MSC_VER						  
 	EnterCriticalSection(&mutex_lock);
 #endif
 }
@@ -76,7 +76,7 @@ void ThreadLock::SectionUnlock()
 #ifdef _LINUX
 	pthread_mutex_unlock(&mutex_lock);
 #endif
-#ifdef WIN32
+#ifdef _MSC_VER
 	LeaveCriticalSection(&mutex_lock);
 #endif
 }
@@ -86,7 +86,7 @@ void ThreadLock::SectionUnlock()
 pthread_mutex_t & ThreadLock::GetMutex() { return mutex_lock;};
 #endif
 
-#ifdef WIN32 
+#ifdef _MSC_VER 
 CRITICAL_SECTION  & ThreadLock::GetMutex() { return mutex_lock;};
 #endif
 
@@ -96,7 +96,7 @@ void ThreadLock::InitMutexLock()
 	pthread_mutex_init(&mutex_lock, NULL);
 #endif
 
-#ifdef WIN32
+#ifdef _MSC_VER
 	InitializeCriticalSection(&mutex_lock);
 #endif
 };
@@ -106,7 +106,7 @@ void ThreadLock::DeleteMutexLock()
 #ifdef _LINUX
 	pthread_mutex_destroy(&mutex_lock);
 #endif
-#ifdef WIN32
+#ifdef _MSC_VER
 	DeleteCriticalSection(&mutex_lock);
 #endif
 };
