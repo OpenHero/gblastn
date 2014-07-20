@@ -3,6 +3,7 @@
 #include <map>
 #include <vector>
 #include <string>
+// CUDA runtime
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include <algo/blast/gpu_blast/thread_work_queue.hpp>
