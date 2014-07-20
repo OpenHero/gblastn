@@ -2,6 +2,7 @@
 // CUDA runtime
 #include <iostream>
 #include <algorithm>
+
 //////////////////////////////////////////////////////////////////////////
 #include <algo/blast/gpu_blast/gpu_blast_multi_gpu_utils.hpp>
 #include <algo/blast/gpu_blast/thread_work_queue.hpp>
