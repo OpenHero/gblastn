@@ -1,19 +1,37 @@
-#include <algo/blast/gpu_blast/gpu_blast_multi_gpu_utils.hpp>
-#include <algo/blast/gpu_blast/thread_work_queue.hpp>
+
 // CUDA runtime
-#include <cuda_runtime.h>
-#include <helper_cuda.h>
 #include <iostream>
 #include <algorithm>
 //////////////////////////////////////////////////////////////////////////
-
+#include <algo/blast/gpu_blast/gpu_blast_multi_gpu_utils.hpp>
+#include <algo/blast/gpu_blast/thread_work_queue.hpp>
 
 
 GpuBlastMultiGPUsUtils::GpuBlastMultiGPUsUtils()
 {
 	b_useGpu = false;
 	i_num_limited = 0;
-	i_GPU_N = 0;
+	select_id = -1;
+
+	checkCudaErrors(cudaGetDeviceCount(&i_GPU_N));
+	for (int i = 0; i < i_GPU_N; i++)
+	{
+		cudaDeviceProp deviceProp;
+		checkCudaErrors(cudaGetDeviceProperties(&deviceProp, i));
+		int version = deviceProp.major * 10 + deviceProp.minor;
+		if (version >= 13)
+		{
+			GpuHandle * gpu_handle = new GpuHandle();
+			gpu_handle->Prop = deviceProp;
+			gpu_handle->InUsed = false;
+			gpu_handle->Data.m_global = NULL;
+			gpu_handle->Data.m_local = NULL;
+			mt_GPU.insert (GpuHandleMapPairType(i, gpu_handle));
+			q_gpu_ids.push_back(i);
+		}
+	}
+
+	i_GPU_N = q_gpu_ids.size();
 }
 
 GpuBlastMultiGPUsUtils::~GpuBlastMultiGPUsUtils()
@@ -23,61 +41,29 @@ GpuBlastMultiGPUsUtils::~GpuBlastMultiGPUsUtils()
 
 int GpuBlastMultiGPUsUtils::InitGPUs(bool use_gpu, int gpu_id)
 {
-	if (b_useGpu == true) return i_GPU_N;
-	b_useGpu = use_gpu;
-	if (b_useGpu == false) 
+	if (use_gpu == false) 
 		return 0;
 
-	checkCudaErrors(cudaGetDeviceCount(&i_GPU_N));
-	vector<int> candidate_list;
-	for (int i = 0; i < i_GPU_N; i++)
+	if (i_GPU_N < 1) 
 	{
-		cudaDeviceProp deviceProp;
-		checkCudaErrors(cudaGetDeviceProperties(&deviceProp, i));
-		 int version = deviceProp.major * 10 + deviceProp.minor;
-		if (version >= 30)
-		{
-			candidate_list.push_back(i);
-		}
-	}
-
-	if (candidate_list.empty()) 
-	{
-		cout << "There is no GPU card compute capability > 1.3." <<endl;
-		cout << "It runs in CPU mode." <<endl;
-		b_useGpu = false;
+		cout << "There is no GPU card compute capability > 1.3."
+		     << "It runs in CPU mode." 
+			 << endl;
 		return 0;
 	}
+
 	if (gpu_id != -1)
 	{
-		if ((find(candidate_list.begin(),candidate_list.end(),gpu_id) == candidate_list.end()))
+		if(mt_GPU.find(gpu_id) == mt_GPU.end())
 		{
-			cout << "Please choose > 1.3 GPU card." <<endl;
-			cout << "It runs in CPU mode." <<endl;
-			b_useGpu = false;
+			cout << "Please choose GPU card compute capability > 1.3." << endl;
 			return 0;
 		}
-		q_gpu_ids.push(gpu_id);
-		GpuData* gpu_data = new GpuData();
-		gpu_data->m_global = NULL;
-		gpu_data->m_local = NULL;
-		m_GpuData.insert(GPUDataMapPairType(gpu_id, gpu_data));
-		i_GPU_N =1;
+		b_useGpu = true;
+		select_id = gpu_id;
 		return 1;
 	}
-	else
-	{
-		vector<int>::iterator itr;
-		for (itr = candidate_list.begin(); itr != candidate_list.end(); itr++)
-		{								 
-			q_gpu_ids.push(*itr);
-			GpuData* gpu_data = new GpuData();
-			gpu_data->m_global = NULL;
-			gpu_data->m_local = NULL;
-			m_GpuData.insert(GPUDataMapPairType(*itr, gpu_data));
-		}
-	}
-	i_GPU_N = candidate_list.size();
+	b_useGpu = true;
 	return i_GPU_N;
 }
 
@@ -87,34 +73,30 @@ void GpuBlastMultiGPUsUtils::ReleaseGPUs()
 	{
 		while(!q_gpu_ids.empty())
 		{
-			int gpu_id = q_gpu_ids.top();
+			int gpu_id = q_gpu_ids.back();
 			checkCudaErrors(cudaSetDevice(gpu_id));
 
-			GPUDataMapType::iterator itr = m_GpuData.find(gpu_id);
-			if (itr != m_GpuData.end())
+			GpuHandleMapType::iterator itr = mt_GPU.find(gpu_id);
+			if (itr != mt_GPU.end())
 			{
-				GpuData* gpu_data = itr->second;
+				GpuHandle* gpu_handle = itr->second;
 
-				if (gpu_data != NULL)
+				if (gpu_handle != NULL)
 				{
-					if (gpu_data->m_global)
+					if (gpu_handle->Data.m_global != NULL)
 					{
-						delete gpu_data->m_global;
+						delete gpu_handle->Data.m_global;
 					}
-					if (gpu_data->m_local != NULL)
+					if (gpu_handle->Data.m_local != NULL)
 					{
-						delete gpu_data->m_local;
+						delete gpu_handle->Data.m_local;
 					}
-					//if (gpu_data->m_pairs != NULL)
-					//{
-					//	free(gpu_data->m_pairs);
-					//}
-					delete gpu_data;
+					delete gpu_handle;
 				}
 			}
 
 			cudaDeviceReset();
-			q_gpu_ids.pop();
+			q_gpu_ids.pop_back();
 		}
 	}
 }
@@ -129,22 +111,21 @@ void GpuBlastMultiGPUsUtils::ThreadFetchGPU(int & gpu_id)
 	else
 	{
 		unsigned long p_thread_id = mt_lock.GetCurrentThreadID();
-		if (mt_GPU.find(p_thread_id) != mt_GPU.end())
+		if (mt_threads.find(p_thread_id) != mt_threads.end())
 		{
-			gpu_id = mt_GPU[p_thread_id];
+			gpu_id = mt_threads.find(p_thread_id)->first;
 		}
 		else
 		{
 			if (q_gpu_ids.size() > 0)
 			{
-				gpu_id = q_gpu_ids.top();
-				mt_GPU.insert(ThreadGPUMapPairType(p_thread_id, gpu_id));
+				gpu_id = q_gpu_ids.back();
+				mt_threads.insert(ThreadGPUPairType(p_thread_id, gpu_id));
 				checkCudaErrors(cudaSetDevice(gpu_id));
 				string thread_name = "GPU thread ";
 				thread_name += gpu_id;
 				mt_lock.SetCurrentThreadName(p_thread_id, thread_name);
-				//checkCudaErrors(cudaStreamCreate(&m_GpuData[gpu_id]->stream));
-				q_gpu_ids.pop();
+				q_gpu_ids.pop_back();
 			}
 			else
 			{
@@ -161,22 +142,18 @@ void GpuBlastMultiGPUsUtils::ThreadReplaceGPU()
 	mt_lock.SectionLock();
 
 	unsigned long p_thread_id = mt_lock.GetCurrentThreadID();
-	if (p_thread_id > 0)
-	{
-		ThreadGPUMapType::iterator itr = mt_GPU.find(p_thread_id);
-		if( itr != mt_GPU.end())
-		{	
-			int gpu_id = itr->second;
-			q_gpu_ids.push(gpu_id);
-			mt_GPU.erase(itr);
-		}
+	ThreadGPUMapType::iterator itr = mt_threads.find(p_thread_id);
+	if( itr != mt_threads.end())
+	{	
+		int gpu_id = itr->second;
+		q_gpu_ids.push_back(gpu_id);
+		mt_threads.erase(itr);
 	}
-
 	mt_lock.SectionUnlock();
 }
 //////////////////////////////////////////////////////////////////////////
 
-GpuData* GpuBlastMultiGPUsUtils::GetCurrentThreadGPUData()
+GpuHandle* GpuBlastMultiGPUsUtils::GetCurrentGPUHandle()
 {
 	unsigned long p_thread_id = mt_lock.GetCurrentThreadID();
 
@@ -184,9 +161,9 @@ GpuData* GpuBlastMultiGPUsUtils::GetCurrentThreadGPUData()
 
 	if(mt_GPU.find(p_thread_id) != mt_GPU.end())
 	{
-		int gpu_id = mt_GPU[p_thread_id];
+		int gpu_id = mt_threads[p_thread_id];
 		checkCudaErrors(cudaSetDevice(gpu_id));
-		return m_GpuData[gpu_id];
+		return mt_GPU[gpu_id];
 	}
 
 	return NULL;

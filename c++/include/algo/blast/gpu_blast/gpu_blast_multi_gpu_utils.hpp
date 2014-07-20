@@ -1,11 +1,12 @@
 #ifndef __GPU_BLAST_MULTI_GPU_UTILS_H__
 #define __GPU_BLAST_MULTI_GPU_UTILS_H__
-
-#include <algo/blast/gpu_blast/thread_work_queue.hpp>
-//
 #include <map>
-#include <stack>
+#include <vector>
 #include <string>
+#include <cuda_runtime.h>
+#include <helper_cuda.h>
+#include <algo/blast/gpu_blast/thread_work_queue.hpp>
+
 
 #ifdef _MSC_VER
 #include <windows.h>
@@ -33,15 +34,19 @@ struct GpuData
 {
 	GpuObject* m_global;
 	GpuObject* m_local;
-	//void*		m_pairs;
-	//cudaStream_t stream;
+};
+struct GpuHandle 
+{
+	cudaDeviceProp Prop;
+	bool InUsed;
+	GpuData Data;
 };
 
-typedef map<int, GpuData*> GPUDataMapType;
-typedef pair<int, GpuData*>	GPUDataMapPairType;
+typedef map<int, GpuHandle*> GpuHandleMapType;
+typedef pair<int, GpuHandle*>	GpuHandleMapPairType;
 
 typedef map<unsigned long, int> ThreadGPUMapType;
-typedef pair<unsigned long, int> ThreadGPUMapPairType;
+typedef pair<unsigned long, int> ThreadGPUPairType;
 
 class GpuBlastMultiGPUsUtils
 {
@@ -65,17 +70,19 @@ public:
 	void ThreadFetchGPU(int & gpu_id);
 	void ThreadReplaceGPU();
 
-	GpuData* GetCurrentThreadGPUData();
+	GpuHandle* GetCurrentGPUHandle();
 
 	bool b_useGpu;
 protected:
 	
 private:
 	int i_GPU_N;
-	stack<int> q_gpu_ids;
-	ThreadGPUMapType mt_GPU;
+	vector<int> q_gpu_ids;
+	GpuHandleMapType mt_GPU;
+	ThreadGPUMapType mt_threads;
 
-	GPUDataMapType m_GpuData;
+	int select_id;
+
 	ThreadLock mt_lock;
 
 	int i_num_limited;

@@ -62,9 +62,10 @@ struct OffsetPairCmp {
 //init database gpu memory
 void InitGPU_DB_Mem(int subject_seq_num, int max_len)
 {
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
 
-	if (gpu_obj->m_global == NULL)
+	if (gpu_obj.m_global == NULL)
 	{
 		//////////////////////////////////////
 		//for short query blastn
@@ -109,7 +110,7 @@ void InitGPU_DB_Mem(int subject_seq_num, int max_len)
 			p_scanMultiDBAuxWrap->subject[i]= NULL;
 		}
 
-		gpu_obj->m_global = p_scanMultiDBAuxWrap;
+		gpu_obj.m_global = p_scanMultiDBAuxWrap;
 	}
 }
 
@@ -120,10 +121,11 @@ void InitGPUMem_DB_MultiSeq(int subject_seq_num, int max_len)
 
 void ReleaseGPUMem_DB_MultiSeq()
 {
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	if (gpu_obj->m_global != NULL)
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	if (gpu_obj.m_global != NULL)
 	{
-		cudaScanAuxWrapMultiQueries * p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries *) gpu_obj->m_global;
+		cudaScanAuxWrapMultiQueries * p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries *) gpu_obj.m_global;
 
 		delete [] p_scanMultiDBAuxWrap->h_offsetPairs;
 
@@ -145,7 +147,7 @@ void ReleaseGPUMem_DB_MultiSeq()
 		delete[] p_scanMultiDBAuxWrap->subject;
 
 		delete p_scanMultiDBAuxWrap;   
-		gpu_obj->m_global = NULL;
+		gpu_obj.m_global = NULL;
 	}
 }
 
@@ -224,8 +226,9 @@ void InitSmallNaLookupTableTexture_v3(cudaSmallTableAuxWrap& cuda_smallAuxWrap, 
 
 void InitSmallQueryGPUMem(LookupTableWrap* lookup_wrap, BLAST_SequenceBlk* query, BlastQueryInfo* query_info)
 {
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	if (gpu_obj->m_local == NULL)
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	if (gpu_obj.m_local == NULL)
 	{
 		BlastContextInfo* d_contextinfo = NULL;
 		Uint1* d_query_compressed_nuc_seq_start = NULL;
@@ -253,7 +256,7 @@ void InitSmallQueryGPUMem(LookupTableWrap* lookup_wrap, BLAST_SequenceBlk* query
 
 		InitSmallNaLookupTableTexture_v3(*p_smallAuxWrap, lookup_wrap);
 
-		gpu_obj->m_local = p_smallAuxWrap;
+		gpu_obj.m_local = p_smallAuxWrap;
 	}
 }
 
@@ -261,10 +264,11 @@ void InitSmallQueryGPUMem(LookupTableWrap* lookup_wrap, BLAST_SequenceBlk* query
 
 void ReleaseSmallQueryGPUMem()
 {
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	if (gpu_obj->m_local != NULL)
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	if (gpu_obj.m_local != NULL)
 	{
-		cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj->m_local;
+		cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
 		
 		checkCudaErrors(cudaFree(p_smallAuxWrap->contextinfo));
 		checkCudaErrors(cudaFree(p_smallAuxWrap->query_compressed_nuc_seq_start));
@@ -275,7 +279,7 @@ void ReleaseSmallQueryGPUMem()
 #endif
 		delete [] p_smallAuxWrap->h_small_table;
 		delete p_smallAuxWrap;		
-		gpu_obj->m_local = NULL;
+		gpu_obj.m_local = NULL;
 	}
 }
 
@@ -410,9 +414,10 @@ Int4
 
 	int current_subject_id = subject->oid;
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
 
 	slogfile.Start();
 	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
@@ -459,9 +464,10 @@ Int4
 	dim3 gridDim_Ex(blockNum_Ex, 1);
 	dim3 blockDim_Ex(threadNum, 1);
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
 
 	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
 
@@ -923,9 +929,10 @@ Int4
 
 	int current_subject_id = subject->oid;
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
 #if LOG_TIME
 	  slogfile.Start();
 #endif
@@ -1079,9 +1086,10 @@ Int4
 
 	int current_subject_id = subject->oid;
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
 #if LOG_TIME
 	  slogfile.Start();
 #endif
@@ -1131,9 +1139,10 @@ Int4
 	dim3 gridDim_Ex(blockNum_Ex, 1);
 	dim3 blockDim_Ex(threadNum, 1);
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
 
 	//checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
 
@@ -1259,8 +1268,9 @@ void InitMBLookupTableTexture(cudaMBHashAuxWrap& p_MBHashWrap, LookupTableWrap* 
 
 void InitMBQueryGPUMem(LookupTableWrap * lookup_wrap,	BLAST_SequenceBlk * query)
 {
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	if (gpu_obj->m_local == NULL)
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	if (gpu_obj.m_local == NULL)
 	{
 		//unsigned int * d_exact_hits_num;
 		Int4 * d_hashtable, *d_next_pos;
@@ -1288,16 +1298,17 @@ void InitMBQueryGPUMem(LookupTableWrap * lookup_wrap,	BLAST_SequenceBlk * query)
 
 		InitMBLookupTableTexture(*p_MBHashWrap, lookup_wrap);
 
-		gpu_obj->m_local = p_MBHashWrap;
+		gpu_obj.m_local = p_MBHashWrap;
 	}
 }
 
 void ReleaseMBQueryGPUMem()
 {
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	if (gpu_obj->m_local != NULL)
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	if (gpu_obj.m_local != NULL)
 	{
-		cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj->m_local;
+		cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
 
 		checkCudaErrors(cudaFree(p_MBHashWrap->hashtable));
 		checkCudaErrors(cudaFree(p_MBHashWrap->next_pos));
@@ -1308,7 +1319,7 @@ void ReleaseMBQueryGPUMem()
 #endif
 
 		delete p_MBHashWrap;		
-		gpu_obj->m_local = NULL;
+		gpu_obj.m_local = NULL;
 	}
 }
 
@@ -1442,9 +1453,10 @@ Int4
 	Uint4 subject_len = subject->length;
 	int current_subject_id = subject->oid;
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
 
 	slogfile.Start();
 	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
@@ -1655,9 +1667,10 @@ Int4
 	Uint4 subject_len = subject->length;
 	int current_subject_id = subject->oid;
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
 
 	slogfile.Start();
 	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
@@ -1792,9 +1805,10 @@ Int4
 	Uint4 subject_len = subject->length; //length is bp, 2bit.
 	int current_subject_id = subject->oid;
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
 
 	slogfile.Start();
 	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
@@ -1849,9 +1863,10 @@ Int4
 	dim3 blockDim_Ex(threadNum, 1);
 
 	//printf("%d, %d\n", threadNum, blockNum_Ex);
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
 
 	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
 
@@ -2084,9 +2099,10 @@ Int4 s_gpu_MB_DiscWordScanSubject_11_18_1(
 	Uint4 subject_len = subject->length;
 	int current_subject_id = subject->oid;
 
-	GpuData* gpu_obj = BlastMGPUUtil.GetCurrentThreadGPUData();
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj->m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj->m_local;
+	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
+	GpuData& gpu_obj = gpu_handle->Data;
+	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
+	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
 
 	slogfile.Start();
 	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)

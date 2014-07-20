@@ -8,7 +8,6 @@
 #define USE_SMALL_TEXTURE 1
 
 #if(USE_SMALL_TEXTURE)
-//texture<float, 1, cudaReadModeElementType> texFloat;
 texture<Int2,1,cudaReadModeElementType> tx_backbone;
 #define   LOAD_INT2(i) tex1Dfetch(tx_backbone, i)
 #define  SET_INT2_BASE checkCudaErrors( cudaBindTexture(0, tx_backbone, d_backbone) )
