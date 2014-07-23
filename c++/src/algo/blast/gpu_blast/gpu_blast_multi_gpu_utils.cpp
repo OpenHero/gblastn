@@ -172,3 +172,13 @@ GpuHandle* GpuBlastMultiGPUsUtils::GetCurrentGPUHandle()
 
 GpuBlastMultiGPUsUtils& BlastMGPUUtil = GpuBlastMultiGPUsUtils::instance();
 
+
+int Blast_gpu_Init(bool isInit, int gpu_id)
+{
+    return BlastMGPUUtil.InitGPUs(isInit, gpu_id);  
+}
+void Blast_gpu_Release()
+{
+    BlastMGPUUtil.ReleaseGPUs();
+}
+

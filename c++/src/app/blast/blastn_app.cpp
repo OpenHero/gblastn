@@ -49,6 +49,10 @@ static char const rcsid[] =
 ///// CHANGED by kyzhao /////
 //#include "utility.h"
 #include <sstream>
+#if _LINUX
+#include <unistd.h>
+#endif
+
 //#include <string>
 ///// CHANGED /////
 
@@ -455,7 +459,7 @@ int CBlastnApp::Run()
 
 
 		const CBlastOptions& opt = opts_hndl->GetOptions();
-		int initgpus = BlastMGPUUtil.InitGPUs(opt.GetUseGpu(), opt.GetGpuID());  
+		int initgpus = Blast_gpu_Init(opt.GetUseGpu(), opt.GetGpuID());//BlastMGPUUtil.InitGPUs(opt.GetUseGpu(), opt.GetGpuID());  
 		int method = opt.GetMethod();
 
 	///// CHANGED /////
@@ -464,7 +468,7 @@ int CBlastnApp::Run()
 			string dbname = args[kArgDb].AsString();
 			//char* table_filename = "converted_human.1-8.wm.table";
 			string table_name = dbname+".table";
-			rdsmap = new NewRecordsMap(table_name);
+			//rdsmap = new NewRecordsMap(table_name);
 		}
 	///// CHANGED /////
 
@@ -484,7 +488,7 @@ int CBlastnApp::Run()
 #if MULTI_QUERIES	 
 		gpu_ReleaseDBMemory();
 #endif
-		BlastMGPUUtil.ReleaseGPUs();
+		Blast_gpu_Release();//BlastMGPUUtil.ReleaseGPUs();
 
 		slogfile.printTotalNameBySteps();
 		slogfile.m_file.close();
