@@ -1,4 +1,4 @@
-﻿************************ G-BLASTN 1.1 [November 2013] ****************************
+#  G-BLASTN  
 
 G-BLASTN is a GPU-accelerated nucleotide alignment tool based on the widely used NCBI-BLAST. 
 G-BLASTN can produce exactly the same results as NCBI-BLAST, and it also has very similar user 
@@ -22,7 +22,7 @@ Acknowledgement:
 This project is supported by grant FRG2/11-12/158 from Hong Kong Baptist University. We also thank NVIDIA corporation for their donation of GPU cards.
 
 News: 
-1.1 version release is built on NCBI-BLAST 2.2.28.
+ 1.1 [November 2013] version release is built on NCBI-BLAST 2.2.28.
 
 I. Supported features
 =====================
