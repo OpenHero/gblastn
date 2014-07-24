@@ -24,7 +24,7 @@ COMMONFLAGS := -c -D_LINUX
 OPT_COMMAND := -mssse3
 # the "--no-align-double" is necessary. Without it the nvcc compiler aligns structure sizes every 8 bytes which is 
 #incompatible with some NCBI_BLAST data structures, i.e. the "BlastContextInfo"
-NVCCFLAGS :=  -O3 -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=sm_30 -gencode=arch=compute_35,code=sm_35 -gencode=arch=compute_35,code=compute_35 -Xptxas -v --no-align-double -Xcompiler -fipc
+NVCCFLAGS :=  -O3 -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=sm_30 -gencode=arch=compute_35,code=sm_35 -gencode=arch=compute_35,code=compute_35 -Xptxas -v --no-align-double -Xcompiler -fPIC
 
 all: libgpublastn.a
 
@@ -32,10 +32,10 @@ libgpublastn.a : $(OBJ) gpu_blastn_MB_and_smallNa.o
 	ar cru libgpublastn.a $(OBJ) gpu_blastn_MB_and_smallNa.o
 	ranlib libgpublastn.a	
 	cp libgpublastn.a                          $(PROJ_DIR)/lib/
-	cp $(CUDA_LIB)/libcudart.so               $(PROJ_DIR)/lib/
+	cp $(CUDA_LIB)/libcudart.so*               $(PROJ_DIR)/lib/
 
 %.o: %.cpp
-	$(CXX) $(COMMONFLAGS) $(OPT_COMMAND) $(INCLUDE) -c -o $@ $<
+	$(CXX) $(COMMONFLAGS) $(OPT_COMMAND) $(INCLUDE) -fPIC -o $@ $<
 
 gpu_blastn_MB_and_smallNa.o : 
 	$(NVCC) $(COMMONFLAGS) $(NVCCFLAGS) $(INCLUDE) gpu_blastn_MB_and_smallNa.cu  
