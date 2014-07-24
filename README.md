@@ -31,7 +31,7 @@ NVIDIA GPUs GTX680, GTX780, and Quadro K5000.
 
 Requirement:
 ============
-1). Nvidia GPU card with compute capability > 1.3
+1). Nvidia GPU card with compute capability > 1.3 <br \>
 2). CUDA5.5 version. https://developer.nvidia.com/cuda-toolkit
 
 II. Installation instructions
