@@ -41,4 +41,4 @@ https://github.com/OpenHero/gblastn/wiki/Install-guide
 
 III. How to use G-BLASTN
 ========================
-https://github.com/OpenHero/gblastn/wiki/Use-guide
+https://github.com/OpenHero/gblastn/wiki/User-guide
