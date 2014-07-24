@@ -13,7 +13,7 @@ CUDA_LIB := $(NVCC_PATH)/lib64
 
 PROJ_DIR := $(CXX_DIR)/GCC447-ReleaseMT64
 
-CPP_SRC = gpu_logfile.cpp gpu_blastn_na_ungapped_v3.cpp gpu_blastn_pre_search_engine.cpp gpu_blast_multi_gpu_utils.cpp work_thread.cpp work_thread_base.cpp thread_work_queue.cpp
+CPP_SRC = gpu_logfile.cpp gpu_blastn_na_ungapped_v3.cpp gpu_blastn_pre_search_engine.cpp gpu_blast_multi_gpu_utils.cpp work_thread.cpp work_thread_base.cpp thread_work_queue.cpp utility.cpp
 OBJ = $(CPP_SRC:.cpp=.o)
 
 #@echo $(OBJ)
