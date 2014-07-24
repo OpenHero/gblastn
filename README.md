@@ -27,7 +27,7 @@ News:
 I. Supported features
 =====================
 G-BLASTN accelerates the blastn module of NCBI-BLAST by GPUs. G-BLASTN has been tested on 
-NVIDIA GPUs GTX680, GTX780, and Quadro K5000. 
+NVIDIA GPUs Tesla C2050， GTX680, GTX780, and Quadro K5000. 
 
 Requirement:
 ============
