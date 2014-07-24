@@ -160,7 +160,7 @@ GpuHandle* GpuBlastMultiGPUsUtils::GetCurrentGPUHandle()
 
 	//cout << "thread Id: " << p_thread_id << endl;
 
-	if(mt_GPU.find(p_thread_id) != mt_GPU.end())
+	if(mt_threads.find(p_thread_id) != mt_threads.end())
 	{
 		int gpu_id = mt_threads[p_thread_id];
 		checkCudaErrors(cudaSetDevice(gpu_id));
