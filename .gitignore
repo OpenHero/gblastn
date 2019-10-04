@@ -734,3 +734,4 @@ c++/include/objects/entrez2/entrez2_client_.hpp
 c++/include/objects/blast/blastclient_.hpp
 c++/src/objects/blast/blastclient.cpp
 c++/src/algo/blast/dbindex_search/Makefile.in
+c++/include/objects/blast/blastclient.hpp
