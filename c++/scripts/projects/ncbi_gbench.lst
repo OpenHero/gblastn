@@ -1,0 +1,11 @@
+#define TAGS gbench
+#include "ncbi_gui_base.lst"
+app/blast
+app/blastdb
+internal/aligndb
+internal/gbench
+misc/hgvs$
+misc/third_party
+-[^gi].*/app
+-[^g].*/unit_test
+-algo/ms

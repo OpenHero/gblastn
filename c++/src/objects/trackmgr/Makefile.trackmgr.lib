@@ -1,0 +1,11 @@
+# $Id: Makefile.trackmgr.lib 351952 2012-02-02 14:28:54Z meric $
+
+ASN = trackmgr
+
+SRC = $(ASN:%=%__) $(ASN:%=%___)
+
+LIB = trackmgr
+
+LIB_OR_DLL = lib
+
+WATCHERS = meric clausen

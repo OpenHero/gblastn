@@ -1,0 +1,5 @@
+# $Id: Makefile.in 310762 2011-07-05 20:29:59Z ucko $
+
+ASN_PROJ = macro
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

@@ -1,0 +1,32 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 365317 2012-06-05 14:31:54Z gouriano $
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+APP: test_ccpp_read
+
+# The -t key prevents inclusion of the tree builder into the release
+# SVN_TAG_RELEASE_ADD_FLAGS: -t
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+
+Linux32-Centos  : plain : GCC.sh      --without-debug --with-static --without-runpath --with-flat-makefile
+Linux64-Centos  : plain : GCC.sh      --without-debug --with-static --without-runpath --with-flat-makefile
+IntelMAC        : plain : GCC.sh      --without-debug --with-static --without-runpath --with-flat-makefile
+
+Win64_9     : 900  : static  64  ReleaseDLL
+Win32_10    : 1000 : static  32  ReleaseDLL
+Win64_10    : 1000 : static  64  ReleaseDLL
+
+
+USE_COMPONENTS

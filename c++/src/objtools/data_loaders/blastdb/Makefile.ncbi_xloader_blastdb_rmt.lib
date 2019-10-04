@@ -1,0 +1,8 @@
+# $Id: Makefile.ncbi_xloader_blastdb_rmt.lib 194681 2010-06-16 16:03:59Z vakatov $
+
+LIB = ncbi_xloader_blastdb_rmt
+SRC = bdbloader_rmt remote_blastdb_adapter
+
+ASN_DEP = blastdb xnetblast
+
+WATCHERS = camacho

@@ -1,0 +1,14 @@
+# data resources
+#util/unicode_to_ascii.txt
+internal/cppcore/data-resources/.ncbirc
+objects/seqloc/accguide.txt
+objects/seqfeat/ecnum_.*\.txt
+
+# Tests source code
+internal$
+internal/test$
+internal/test/util
+
+# Required for boost test framework which is used by tests
+corelib$
+util$

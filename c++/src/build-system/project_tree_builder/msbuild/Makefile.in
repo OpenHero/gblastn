@@ -1,0 +1,9 @@
+# $Id: Makefile.in 196694 2010-07-07 19:35:39Z gouriano $
+#################################
+
+XSD_PROJ = msbuild_dataobj
+
+REQUIRES = MSWin
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

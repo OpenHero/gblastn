@@ -1,0 +1,34 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 343938 2011-11-10 16:19:43Z satskyse $
+#
+# Author: Aaron Ucko
+#
+# Purpose: This file holds all the supported configurations of a package.
+#          It is used by the release configurator.
+#
+
+APP: abi-dump abi-loader dbcc fastq-dump fastq-loader illumina-dump
+APP: illumina-loader rcexplain srf-loader
+LIB: libk* libldfmt* libncbi-* libsra* libvdb* libw*
+COPY: $srcdir/src/internal/sra/sdk/CHANGES $installdir
+COPY: $srcdir/src/internal/sra/sdk/README $installdir
+COPY: $srcdir/src/internal/sra/sdk/inc $installdir
+COPY: $srcdir/src/internal/sra/sdk/itf $installdir
+
+USE_COMPONENTS: sra-sdk-for-release
+
+DEFAULT_CONFIGURATIONS: Linux32-Centos:plain Linux64-Centos:plain
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+Linux32-Centos    : plain : GCC.sh 3.4.2     --without-debug --with-mt --without-dll --without-runpath --without-version --with-flat-makefile
+Linux32-Centos    : debug : GCC.sh 3.4.2     --with-debug --with-mt --without-dll --without-runpath --without-version --with-flat-makefile
+Linux64-Centos    : plain : GCC.sh 4.0.1     --without-debug --with-mt --without-dll --without-runpath --without-version --with-flat-makefile
+Linux64-Centos    : debug : GCC.sh 4.0.1     --with-debug --with-mt --without-dll --without-runpath --without-version --with-flat-makefile

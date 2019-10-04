@@ -1,0 +1,6 @@
+#################################
+# $Id: Makefile.homologene.lib 68784 2005-09-01 17:41:40Z dicuccio $
+#################################
+
+LIB = homologene
+SRC = homologene__ homologene___

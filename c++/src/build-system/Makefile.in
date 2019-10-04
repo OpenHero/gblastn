@@ -1,0 +1,6 @@
+# $Id: Makefile.in 129561 2008-06-03 14:30:27Z gouriano $
+
+SUB_PROJ = project_tree_builder
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

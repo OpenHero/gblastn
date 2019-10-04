@@ -1,0 +1,6 @@
+# $Id: Makefile.taxon3.lib 190691 2010-05-04 15:42:43Z vakatov $
+
+LIB = taxon3
+SRC = taxon3__ taxon3___ taxon3
+
+WATCHERS = bollin

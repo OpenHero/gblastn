@@ -1,0 +1,11 @@
+ToolkitWrappers
+
+Python and Perl wrappers for the C++ Toolkit
+
+It is possible to tune for what language (Python and/or Perl) the wrappers
+must be built. It is done via an environment variable NCBI_SWIG_LANG.
+The variable must be set in the <ENV>...</ENV> tag in the Manifest file.
+The variable holds a space separated list of languages for which the
+wrappers are built, e.g. "python perl" or "python" or "perl".
+
+See CXX-649 for details

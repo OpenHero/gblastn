@@ -1,0 +1,13 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 197955 2010-07-23 19:03:01Z satskyse $
+#
+# Author: Sergey Satskiy
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+Linux64-Centos  : gcc : GCC.sh  --without-debug --without-ncbi-c --with-internal --with-mt --with-flat-makefile
+

@@ -1,0 +1,21 @@
+# $Id: Makefile.serial.lib 184376 2010-02-26 17:16:17Z ivanov $
+
+# Build library "XSER"
+#################################
+
+SRC = \
+	hookdata hookdatakey typeinfo objectinfo objectiter objectio \
+        typeref typemap \
+        stdtypes enumerated ptrinfo autoptrinfo continfo stltypes \
+	memberid memberlist item classinfob member classinfo \
+	variant choice choiceptr aliasinfo \
+	objistr objostr objcopy iterator \
+	serial delaybuf pack_string \
+	exception objhook objlist objstack \
+	$(serial_ws50_rtti_kludge) \
+	objostrasn objistrasn objostrasnb objistrasnb objostrxml objistrxml \
+	objostrjson objistrjson serializable serialobject pathhook
+
+LIB    = xser
+
+WATCHERS = gouriano

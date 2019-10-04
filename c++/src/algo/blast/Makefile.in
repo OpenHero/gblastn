@@ -1,0 +1,12 @@
+# $Id: Makefile.in 319820 2011-07-25 20:22:28Z maning $
+
+# Meta-makefile ("BLAST" project)
+#################################
+
+SUB_PROJ = composition_adjustment core dbindex dbindex_search api format blastinput \
+           igblast gumbel_params unit_tests
+
+WATCHERS = camacho madden
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

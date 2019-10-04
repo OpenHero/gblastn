@@ -1,0 +1,220 @@
+#!/bin/sh
+# $Id: config.site.ncbi 391111 2013-03-05 16:57:11Z ucko $
+
+# Note default paths to third-party libraries, whose location and even
+# presence varies somewhat from platform to platform.
+
+. `dirname $0`/../../scripts/common/common.sh
+ncbi_platform=`COMMON_DetectPlatform`
+
+if test "$ncbi_favor_std_packages" = yes; then
+    # /sw (Mac)? /usr/sfw (Solaris)?
+    for d in /usr/local /usr/X11 /usr/openwin /usr; do
+        test -d "$d"  ||  continue
+        test -f "$d/include/db.h"          &&  : ${BERKELEYDB_PATH=$d}
+        test -d "$d/include/boost"         &&  : ${BOOST_PATH=$d}
+        test -f "$d/include/expat.h"       &&  : ${EXPAT_PATH=$d}
+        test -f "$d/include/fastcgi.h"     &&  : ${FASTCGI_PATH=$d}
+        test -d "$d/include/FTGL"          &&  : ${FTGL_PATH=$d}
+        test -x "$d/bin/libgcrypt-config"  &&  : ${GCRYPT_PATH=$d}
+        test -x "$d/bin/libgnutls-config"  &&  : ${GNUTLS_PATH=$d}
+        test -f "$d/include/hdf5.h"        &&  : ${HDF5_PATH=$d}
+        test -x "$d/bin/icu-config"        &&  : ${ICU_PATH=$d}
+        test -x "$d/include/libxslt"       &&  : ${LIBXML_PATH=$d}
+        test -f "$d/include/lzo/lzo1.h"    &&  : ${LZO_PATH=$d}
+        test -d "$d/include/muParser"      &&  : ${MUPARSER_PATH=$d}
+        test -x "$d/bin/mysql-config"      &&  : ${MYSQL_PATH=$d}
+        test -d "$d/include/GL"            &&  : ${OPENGL_PATH=$d}
+        test -d "$d/include/OB"            &&  : ${ORBACUS_PATH=$d}
+        test -x "$d/bin/sablot-config"     &&  : ${SABLOT_PATH=$d}
+        test -f "$d/include/sqlite.h"      &&  : ${SQLITE_PATH=$d}
+        test -f "$d/include/sqlite3.h"     &&  : ${SQLITE3_PATH=$d}
+        test -x "$d/bin/wx-config"         &&  : ${WXWIDGETS_PATH=$d}
+        test -d "$d/include/xalanc"        &&  : ${XALAN_PATH=$d}
+        test -d "$d/include/xercesc"       &&  : ${XERCES_PATH=$d}
+    done
+fi
+
+case "$ncbi_platform" in
+    Linux32   ) ncbi_rpath_sed="s,$NCBI/\\(.*\\),/opt/ncbi/32/\\1:&," ;;
+    Linux64   ) ncbi_rpath_sed="s,$NCBI/\\(.*\\),/opt/ncbi/64/\\1:&," ;;
+esac
+
+case "$ncbi_platform" in
+    FreeBSD32  )
+        case "`uname -r`" in
+            6* ) : ${BERKELEYDB_PATH=$NCBI/BerkeleyDB-4.4.20}   ;;
+            8* ) : ${BERKELEYDB_PATH=$NCBI/BerkeleyDB-4.6.21.1} ;;
+        esac
+        ;;
+    Linux*     ) : ${BERKELEYDB_PATH=$NCBI/BerkeleyDB-4.6.21.1} ;;
+    *MAC       ) : ${BERKELEYDB_PATH=$NCBI/BerkeleyDB-4.5.20}   ;;
+    SunOSx86   ) : ${BERKELEYDB_PATH=$NCBI/BerkeleyDB-4.6.21.1} ;;
+    SunOSSparc ) : ${BERKELEYDB_PATH=$NCBI/BerkeleyDB-4.5.20}   ;;
+esac
+
+case "$ncbi_platform" in
+    Linux32    ) : ${BOOST_PATH=$NCBI/boost-1.45.0-ncbi3} ;;
+    Linux64    ) : ${BOOST_PATH=$NCBI/boost-1.45.0-ncbi1} ;;
+    *          ) : ${BOOST_PATH=$NCBI/boost-1.45.0-ncbi2} ;;
+esac
+
+case "$ncbi_platform" in
+    Linux32    ) : ${EXPAT_PATH=$NCBI/expat-1.95.6} ;;
+    Linux64    ) : ${EXPAT_PATH=$NCBI/expat-1.95.8} ;;
+esac
+
+case "$ncbi_platform" in
+    Linux*     ) : ${FASTCGI_PATH=$NCBI/fcgi-2.4.0}       ;;
+    SunOSx86   ) : ${FASTCGI_PATH=$NCBI/fcgi-2.1}         ;;
+    SunOSSparc ) : ${FASTCGI_PATH=$NCBI/fcgi-2.4.0-ncbi1} ;;
+esac
+
+case "$ncbi_platform" in
+    *MAC       ) : ${FREETYPE_PATH=/usr/X11} ;;
+esac
+
+: ${FTDS_PATH:="/netopt/Sybase/clients-mssql/current"}
+
+case "$ncbi_platform" in
+    SunOS* ) : ${FTGL_PATH=$NCBI/ftgl-2.1.3-rc5-ncbi1} ;;
+    *      ) : ${FTGL_PATH=$NCBI/ftgl-2.1.3-rc5}       ;;
+esac
+
+: ${GLEW_PATH=$NCBI/glew-1.5.8}
+
+case "$ncbi_platform" in
+    Linux*     ) : ${GCRYPT_PATH=$NCBI/libgcrypt-1.4.3} ;;
+esac
+
+case "$ncbi_platform" in
+    Linux*     ) : ${GNUTLS_PATH=$NCBI/gnutls-2.4.2} ;;
+esac
+
+case "$ncbi_platform" in
+    Linux*     ) : ${HDF5_PATH=$NCBI/hdf5-1.8.3} ;;
+esac
+
+case "$ncbi_platform" in
+    FreeBSD32 | *MAC | SunOSx86 ) ;;
+    Linux64    ) : ${ICU_PATH=$NCBI/icu-49.1.1} ;;
+    *          ) : ${ICU_PATH=$NCBI/icu-3.2} ;;
+esac
+
+: ${LIBXML_PATH=$NCBI/libxml-2.7.8}
+
+: ${LZO_PATH=$NCBI/lzo-2.05}
+
+: ${MIMETIC_PATH=$NCBI/mimetic-0.9.7-ncbi1}
+
+case "$ncbi_platform" in
+    SunOS* ) : ${MUPARSER_PATH=$NCBI/muParser-1.30-ncbi1} ;;
+    *      ) : ${MUPARSER_PATH=$NCBI/muParser-1.30}       ;;
+esac
+
+case "$ncbi_platform" in
+    *MAC       ) : ${mysql_config=/usr/bin/false} ;;
+    SunOSSparc ) : ${MYSQL_PATH=/netopt/mysql/3-23.40} ;;
+esac
+
+# C Toolkit (path overridden in stable components to avoid version skew)
+: ${NCBI_C_PATH=$NCBI/c++.by-date/production/20120921/C_TOOLKIT}
+
+# : ${ODBC_PATH:="/opt/machine/merant"}
+
+case "$ncbi_platform" in
+    FreeBSD32 | *MAC | SunOSx86 ) ;;
+    * ) : ${OPENGL_PATH=$NCBI/Mesa-7.0.2-ncbi2} ;;
+esac
+
+case "$ncbi_platform" in
+    Linux32    ) : ${ORBACUS_PATH=$NCBI/corba-4.2.0/GCC342-ReleaseMT_v4.2.0} ;;
+    Linux64    ) : ${ORBACUS_PATH=$NCBI/corba-4.2.0/GCC401-Release64MT}      ;;
+    SunOSSparc ) : ${ORBACUS_PATH=$NCBI/corba-4.0.1/OB-4.0.1}                ;;
+esac
+
+case "$ncbi_platform" in
+    *MAC       ) : ${PCRE_PATH=/usr} ;;
+esac
+
+case "$ncbi_platform" in
+    Linux*     ) : ${PERL_PATH=/opt/perl-5.8.8} ;;
+    *          ) : ${PERL_PATH=/usr} ;;
+esac
+
+case "$ncbi_platform" in
+    *MAC       ) : ${PNG_PATH=/usr/X11} ;;
+esac
+
+case "$ncbi_platform" in
+    *MAC )
+        : ${PYTHON_PATH=/usr}
+        : ${PYTHON24=/usr/bin/false}
+        : ${PYTHON25=/usr/bin/python2.5}
+        : ${PYTHON26=/usr/bin/python2.6}
+        ;;
+    Linux* )
+        : ${PYTHON_PATH=/opt/python-2.5.1}
+        : ${PYTHON24=/usr/local/python-2.4.4/bin/python}
+        : ${PYTHON25=/opt/python-2.5.1/bin/python}
+        ;;
+esac
+
+case "$ncbi_platform" in
+    Linux32    ) : ${SABLOT_PATH=$NCBI/Sablot-1.0.1} ;;
+    Linux64    ) : ${SABLOT_PATH=$NCBI/Sablot-1.0.2} ;;
+    SunOSSparc ) : ${SABLOT_PATH=$NCBI/Sablot-1.0.2} ;;
+esac
+
+case "$ncbi_platform" in
+    FreeBSD32 | *MAC ) ;;
+    *                ) : ${SGE_PATH=/netopt/sge} ;;
+esac
+
+case "$ncbi_platform" in
+    Linux32    ) : ${SP_PATH=$NCBI/SP-1.3.4} ;;
+    SunOSSparc ) : ${SP_PATH=$NCBI/SP-1.3}   ;;
+esac
+
+case "$ncbi_platform" in
+    Linux32    ) : ${SQLITE_PATH=$NCBI/sqlite-2.8.13} ;;
+    *MAC       ) : ${SQLITE_PATH=$NCBI/sqlite-2.8.17} ;;
+    SunOSx86   ) : ${SQLITE_PATH=$NCBI/sqlite-2.8.13} ;;
+    *          ) : ${SQLITE_PATH=$NCBI/sqlite-2.8.16} ;;
+esac
+
+: ${SQLITE3_PATH=$NCBI/sqlite-3.6.14.2-ncbi1}
+
+case "$ncbi_platform" in
+    Linux32    ) : ${SYBASE_PATH=/export/home/sybase/clients/12.5-32bit} ;;
+    Linux64    ) : ${SYBASE_PATH=/export/home/sybase/clients/12.5-64bit} ;;
+    SunOSSparc ) : ${SYBASE_PATH=/netopt/Sybase/clients/12.0-EBF9209}    ;;
+    SunOSx86   ) : ${SYBASE_PATH=/netopt/Sybase/clients/12.5.1}          ;;
+esac
+net_sybase_root="/netopt/Sybase/clients"
+local_sybase_root="/export/home/sybase/clients"
+
+case "$ncbi_platform" in
+    Linux32    ) : ${TCHECK_FALLBACK=/opt/intel/itt/bin/32:/usr/local/intel/itt-3.1/tcheck/bin/32} ;;
+    Linux64    ) : ${TCHECK_FALLBACK=/opt/intel/itt/bin/32e:/usr/local/intel/itt-3.1/tcheck/bin/32e} ;;
+esac
+
+case "$ncbi_platform" in
+    *          ) : ${WXWIDGETS_PATH=$NCBI/wxWidgets-2.9.3-ncbi1} ;;
+esac
+
+case "$ncbi_platform" in
+    FreeBSD32 | *MAC | SunOSx86 ) ;;
+    Linux64    ) : ${XALAN_PATH=$NCBI/xalan-1.11~r1302529} ;;
+    *          ) : ${XALAN_PATH=$NCBI/xalan-1.8.0-ncbi2}   ;;
+esac
+
+case "$ncbi_platform" in
+    FreeBSD32 | *MAC | SunOSx86 ) ;;
+    Linux64    ) : ${XERCES_PATH=$NCBI/xerces-3.1.1} ;;
+    *          ) : ${XERCES_PATH=$NCBI/xerces-2.6.0} ;;
+esac
+
+case "$ncbi_platform" in
+    Linux64    ) : ${ZORBA_PATH=$NCBI/zorba-2.2.0} ;;
+esac

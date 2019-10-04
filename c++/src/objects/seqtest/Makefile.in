@@ -1,0 +1,6 @@
+# $Id: Makefile.in 45612 2004-08-19 16:28:10Z jcherry $
+
+ASN_PROJ = seqtest
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

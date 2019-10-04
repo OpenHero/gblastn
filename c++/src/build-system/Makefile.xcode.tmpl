@@ -1,0 +1,28 @@
+#  $Id: Makefile.xcode.tmpl 177895 2009-12-05 22:29:59Z ucko $
+#  Makefile template for Xcode
+#######################################################################
+
+include ./Makefile.mk
+
+all :
+	xcodebuild -project ${SLN_NAME}.xcodeproj -target ${MTARGET} -configuration ${CONFIGURATION}
+	cd ..; echo ${BUILT_CFGS} > cfgs.log
+
+clean :
+	xcodebuild -project ${SLN_NAME}.xcodeproj -target ${MTARGET} -configuration ${CONFIGURATION} clean
+
+check :
+	@cd .. || exit $$?; ./check.sh run; status=$$?; \
+	if test -n "${NCBI_AUTOMATED_BUILD}"; then \
+	    ./check.sh concat_err; ./check.sh load_to_db; \
+	fi; \
+	exit $$status
+
+all_r : all
+all_p : all
+clean_r : clean
+clean_p : clean
+purge : clean
+check_r : check
+check_p : check
+

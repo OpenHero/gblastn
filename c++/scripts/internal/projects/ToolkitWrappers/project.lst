@@ -1,0 +1,103 @@
+# Take it including tests
+corelib
+
+util$
+util/bitset$
+util/compress
+util/creaders$
+util/fileblobstorage$
+util/image$
+util/qparse$
+util/regexp
+util/sequtil$
+util/tables$
+util/xregexp$
+
+# include only
+util/math$
+util/cache$
+util/impl$
+
+# tests and daemons are excluded
+connect$
+connect/ext$
+connect/services$
+
+# excluding demo and test
+cgi$
+cgi/impl$
+html$
+
+
+# tests are excluded
+serial$
+serial/datatool$
+serial/soap$
+serial/impl$
+
+
+
+# Two projects to build the toolkit wrappers
+internal$
+internal/cppcore$
+internal/cppcore/toolkit_wrappers
+
+objects
+-objects/.*/test
+-objects/.*/demo
+-objects/.*/unit_test
+
+# Take the tests too
+objmgr
+
+objtools
+-objtools/test
+-objtools/.*/unit_test
+-objtools/.*/demo
+-objtools/.*/test
+
+-objtools/asniotest
+
+# The same class names in different namespaces cause troubles for SWIG
+-objtools/eutils
+
+# Obsolete headers. Leave them here for SC 4.0.0 compatibility
+# -objtools/blast_format
+
+# All the bdb nested directories are tests, demoes and applications
+db$
+db/sqlite$
+db/bdb$
+# SC 4.0.0 compatibility: old location of the bdb
+bdb$
+
+
+# Far from everything is required to be covered in dbapi
+dbapi
+-dbapi/samples
+-dbapi/.*/samples
+-dbapi/test
+-dbapi/lang_bind
+-dbapi/ftds
+-dbapi/ftds8
+-dbapi/msdblib
+-dbapi/mysql
+-dbapi/odbc
+-dbapi/sqlite3
+-dbapi/ftds64/dblib
+-dbapi/ftds64/odbc
+-dbapi/dblib
+
+algo
+-algo/test
+-algo/.*/unit_test
+-algo/.*/demo
+-algo/.*/test
+
+-algo/ms/formats/mzml
+-algo/ms/formats/mzdata
+
+misc$
+misc/cgi_redirect
+misc/grid_cgi
+

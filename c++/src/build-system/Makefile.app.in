@@ -1,0 +1,129 @@
+# -*- makefile-gmake -*-
+#################################
+# $Id: Makefile.app.in 331686 2011-08-18 17:21:18Z ucko $
+# Author:  Denis Vakatov (vakatov@ncbi.nlm.nih.gov)
+#################################
+# This can be used to build/install/clean
+# a single(sic!) application [APP] using [OBJ, LIB]
+#
+# srcdir = @srcdir@
+# include @builddir@/Makefile.mk
+#
+# APP = my_app
+# SRC = my_main my_obj1 my_obj2
+# LIB = foo bar
+# .....
+# CXXFLAGS = -g $(ORIG_CXXFLAGS) -D_DEBUG -DXYZ_MY_APP
+# .....
+# include @builddir@/Makefile.app
+#################################
+
+default_rule: all
+
+-include $(srcdir)/Makefile.$(TMPL).app.unix
+
+### C/C++ source file compilation (and maybe auto-dependencies) build rules
+
+CXXFLAGS_ALL = @f_compile@ $(CXXFLAGS) $(LOCAL_CPPFLAGS) $(CPPFLAGS)
+CFLAGS_ALL   = @f_compile@ $(CFLAGS) $(LOCAL_CPPFLAGS) $(CPPFLAGS)
+SOURCES      = @UNIX_SRC@ $(SRC)
+include $(builddir)/Makefile.$(Rules)
+
+
+### Standard application build rules
+
+XAPP = $(APP)@exe_ext@
+XOBJ = $(SOURCES:=@obj_ext@)
+XOBJ2 = $(OBJ:=@obj_ext@)
+XAPP_LIB = @APP_LIB_SETTING@
+XAPP_LIBS = @APP_LIBS_SETTING@
+XLIB = $(runpath) @f_libpath@$(libdir) $(XAPP_LIB:%=@lib_l_pre@%@lib_l_ext@)
+XLIBDEP = $(XAPP_LIB:%=$(status_dir)/.%.dep)
+
+ASK_REBUILD = \
+    base=`echo $$l | sed -e 's,.*/\.\([^.]*\)\.dep$$,\1,'`; \
+    if (cd "$$builddir" && $(MAKE) $(MFLAGS) -q \
+        -f "$(builddir)/Makefile.lib.tmpl" \
+        srcdir="$$srcdir" TMPL="$$tmpl" all) ; then \
+        true ; \
+    else \
+        echo "Rebuild $$tmpl (lib$$base.*) for $(XAPP)?" ; \
+        read result ; \
+        expr "$$result" : "^[Nn]" > /dev/null ; \
+    fi
+
+SKIP_REBUILD = true
+ALL          = $(XAPP)
+@IF_REBUILDING_LIBS@ SKIP_REBUILD = false
+@IF_REBUILDING_LIBS@ ALL          = rebuild-libs
+@IF_REBUILDING_CONDITIONALLY@ SKIP_REBUILD = ($(ASK_REBUILD))
+@IF_REBUILDING_CONDITIONALLY@ ALL          = rebuild-libs
+
+# 1: dep file
+define rebuild_lib
+read srcdir builddir tmpl < "$(1)" ; \
+test -z "$$builddir" || $(SKIP_REBUILD) || \
+(cd "$$builddir" && $(MAKE) $(MFLAGS) libs srcdir="$$srcdir")
+
+endef
+
+rebuild-libs:
+	$(foreach l,$(XLIBDEP),$(call rebuild_lib,$(l)))
+
+$(XAPP): $(XOBJ) $(XLIBDEP)
+	@-$(RM) .$(XAPP).stamp
+	$(LINK_WRAPPER) $(LINK) $(LDFLAGS) $(APP_LDFLAGS) $(XOBJ) $(XOBJ2) $(PRE_LIBS) $(XLIB) $(XAPP_LIBS) @f_outexe@$(XAPP) $(LINK_FILTER)
+	$(STRIP) $(XAPP)
+	$(POST_LINK) $(XAPP)
+ifneq "$(BINCOPY)" "@:"
+  ifneq "$(srcdir)" "."
+    ifneq "$(filter-out /.,$(wildcard $(bindir)/.))" ""
+	@if [ -w $(bindir) ]; then \
+	    echo $(BINCOPY) $(XAPP) $(bindir) && \
+	    $(BINCOPY) $(XAPP) $(bindir); \
+	fi
+    endif
+  endif
+endif
+
+
+### Standard targets (non-recursive)
+
+# Kludge: done this way to force proper serialization
+MAKEFILE = $(builddir)/Makefile.app.tmpl
+
+ifdef import_root
+  ifeq "$(ALL)" "rm-if-outdated"
+    override ALL = $(XAPP)
+    $(XAPP): $(wildcard $(LIB:%=$(import_root)/../lib/lib%.*))
+  endif
+endif
+
+all: $(ALL)
+ifneq "$(ALL)" "$(XAPP)"
+	@$(MAKE) -f $(MAKEFILE) $(MFLAGS) $(XAPP)
+endif
+
+unlink:
+	-$(RM) $(XAPP) .$(XAPP).stamp
+
+clean: clean-common unlink
+	-$(RM) $(XOBJ)
+	-$(RM) core
+
+purge: clean
+ifneq "$(BINCOPY)" "@:"
+  ifneq "$(srcdir)" "."
+    ifneq "$(filter-out /.,$(wildcard $(bindir)/.))" ""
+	-$(RM) $(bindir)/$(XAPP)
+    endif
+  endif
+endif
+
+
+# Guard against invalid PTB-oriented settings.
+#
+all: $(ASN_DEP:%=$(status_dir)/.%.files)
+all: $(USR_DEP:%=$(status_dir)/.%.dep)
+
+.PHONY: default_rule all unlink clean purge

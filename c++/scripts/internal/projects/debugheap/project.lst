@@ -1,0 +1,16 @@
+#define  LST_COMMENT1   Source code
+internal$
+internal/cppcore$
+internal/cppcore/debug$
+internal/cppcore/debug/memory
+
+#define  LST_COMMENT2   Required for boost test framework which is used by tests
+corelib$
+
+#define  LST_COMMENT3    Make it independent on the pre-installed PTB
+util$
+util/regexp$
+util/bitset$
+serial$
+serial/datatool$
+

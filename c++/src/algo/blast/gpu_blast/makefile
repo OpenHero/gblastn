@@ -18,13 +18,19 @@ OBJ = $(CPP_SRC:.cpp=.o)
 
 #@echo $(OBJ)
 
-INCLUDE = -I$(CXX_DIR)/include/ -I$(PROJ_DIR)/inc/ -I$(CXX_DIR)/src -I./ -I$(NVCC_PATH)/include -I$(NVCC_PATH)/samples/common/inc 
+INCLUDE = -I$(CXX_DIR)include/ -I$(PROJ_DIR)/inc/ -I$(CXX_DIR)/src -I./ -I$(NVCC_PATH)/include -I$(NVCC_PATH)/samples/common/inc 
 
 COMMONFLAGS := -c -D_LINUX
 OPT_COMMAND := -mssse3
 # the "--no-align-double" is necessary. Without it the nvcc compiler aligns structure sizes every 8 bytes which is 
 #incompatible with some NCBI_BLAST data structures, i.e. the "BlastContextInfo"
-NVCCFLAGS :=  -O3 -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=sm_30 -gencode=arch=compute_35,code=sm_35 -gencode=arch=compute_35,code=compute_35 -Xptxas -v --no-align-double -Xcompiler -fPIC
+nvcc_ARCH += -gencode=arch=compute_75,code=\"sm_75,compute_75\"
+nvcc_ARCH += -gencode=arch=compute_61,code=\"sm_61,compute_61\"
+nvcc_ARCH += -gencode=arch=compute_52,code=\"sm_52,compute_52\"
+nvcc_ARCH += -gencode=arch=compute_50,code=\"sm_50,compute_50\"
+#nvcc_ARCH += -gencode=arch=compute_35,code=\"sm_35,compute_35\"
+#nvcc_ARCH += -gencode=arch=compute_30,code=\"sm_30,compute_30\"
+NVCCFLAGS :=  -O3 $(nvcc_ARCH) -Xptxas -v --no-align-double -Xcompiler -fPIC
 
 all: libgpublastn.a
 

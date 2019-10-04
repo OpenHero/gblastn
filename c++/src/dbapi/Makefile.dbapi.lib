@@ -1,0 +1,12 @@
+# $Id: Makefile.dbapi.lib 370257 2012-07-27 14:56:37Z ivanovp $
+
+SRC = variant active_obj dbapi driver_mgr err_handler ds_impl conn_impl \
+	 stmt_impl rs_impl rsmeta_impl cstmt_impl  \
+	 bytestreambuf blobstream \
+	 cursor_impl bulkinsert rw_impl
+
+LIB    = dbapi
+
+CPPFLAGS = $(ORIG_CPPFLAGS) $(SYBASE_INCLUDE)
+
+WATCHERS = ucko

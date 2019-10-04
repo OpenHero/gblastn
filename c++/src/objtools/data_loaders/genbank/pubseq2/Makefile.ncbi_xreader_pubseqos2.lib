@@ -1,0 +1,17 @@
+# $Id: Makefile.ncbi_xreader_pubseqos2.lib 190691 2010-05-04 15:42:43Z vakatov $
+
+SRC = reader_pubseq2
+
+LIB = ncbi_xreader_pubseqos2
+
+ASN_DEP = seq seqset id2
+
+# Build shared version when possible
+LIB_OR_DLL = both
+
+# Dependencies for shared library
+DLL_LIB = dbapi_driver$(DLL) ncbi_xreader$(DLL) $(XCONNEXT) xconnect
+
+CPPFLAGS = $(ORIG_CPPFLAGS) $(CMPRS_INCLUDE)
+
+WATCHERS = vasilche

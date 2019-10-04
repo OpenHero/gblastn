@@ -1,0 +1,26 @@
+internal/mapview
+corelib$
+util$
+cgi$
+html$
+internal/history$
+internal/idx$
+internal/ilink$
+internal/idxext/mapviewbase
+internal/idxext/mapview
+internal/idxext/nucleotide2
+internal/idxext/seq2base
+internal/idxext/protein2
+internal/signon2
+#internal/qidx$
+internal/webenv2
+ctools/asn
+serial$
+dbapi$
+dbapi/driver$
+dbapi/driver/ftds
+dbapi/driver/samples
+internal/regexp
+connect
+internal/qall update-only
+internal/spell update-only

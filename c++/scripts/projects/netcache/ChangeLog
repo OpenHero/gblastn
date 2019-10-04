@@ -1,0 +1,21 @@
+Dec 15, 2008
+Added application logging - start and stop of each request from client
+are logged.
+Rewritten protocol parser. Optional additions to protocol are now allowed.
+Transactions checkpoints frequency is now configurable from ini-file and
+is greater by default.
+Better recovery of database in case of unclean exit.
+
+
+Sept 26, 2008
+Enhanced logging and monitoring facilities.
+Fixed bugs of not writing empty blobs, writing blobs twice and
+leaking of resources if connection closed during writing of blob
+into it.
+Added logging of ClientIP and SessionID came from NetCache API client.
+
+Added tests to release to be able to test NetCache after releasing.
+
+
+Apr 04, 2008
+Initial release using a release procedure

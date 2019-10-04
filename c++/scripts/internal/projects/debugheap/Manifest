@@ -1,0 +1,28 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 382694 2012-12-07 19:30:51Z satskyse $
+#
+# Author: Sergey Satskiy
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+
+LIB:  libncbi_debug_heap.so
+COPY: $srcdir/src/internal/cppcore/debug/memory/ncbi_debug_heap.py $installdir/bin/
+COPY: $srcdir/src/internal/cppcore/debug/memory/proc_mem_watch.py  $installdir/bin/
+COPY: $srcdir/src/internal/cppcore/debug/memory/README             $installdir/doc/
+
+DEFAULT_CONFIGURATIONS: Linux64-Centos:gcc
+
+Linux64-Centos  : gcc : GCC.sh  4.4.2 --without-debug --without-ncbi-c --with-internal --with-mt --with-flat-makefile
+

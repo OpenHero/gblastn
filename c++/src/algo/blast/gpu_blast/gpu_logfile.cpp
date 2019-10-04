@@ -1,9 +1,9 @@
 ﻿// Utilities and timing functions
-#include <helper_functions.h>    // includes cuda.h and cuda_runtime_api.h
+//#include <helper_functions.h>    // includes cuda.h and cuda_runtime_api.h
 #include <algo/blast/gpu_blast/gpu_logfile.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <helper_cuda.h>
+//#include <helper_cuda.h>
 
 #ifndef _MSC_VER
 time_type getSystemTime() {

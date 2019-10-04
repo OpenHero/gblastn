@@ -1,0 +1,6 @@
+# $Id: Makefile.in 182287 2010-01-28 16:15:58Z vasilche $
+
+LIB_PROJ = ncbi_xreader_gicache
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

@@ -1,0 +1,47 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 378935 2012-10-25 14:25:44Z rafanovi $
+#
+# Author: Sergey Satskiy
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+APP: lbsmd lbsmc lbsm_feedback
+APP: launcherd fwdaemon dispd.cgi test_mghbn
+LIB: libconnect.a libconnext.a libmghbn.a liblbsmdapi.a
+
+DEFAULT_CONFIGURATIONS:  Linux32-Centos:GCC Linux64-Centos:GCC FreeBSD32:GCC SunOSx86:GCC SunOSSparc:WS64 IntelMAC:GCC
+
+COPY: $bindir/test_mghbn                     $installdir/bin/ncbi_mghbn
+COPY: $bindir/test_ncbi_dblb                 $installdir/bin/ncbi_dblb
+COPY: $srcdir/src/connect/daemons/mod/*mod*  $installdir/src/
+COPY: $srcdir/include/connect/*.h            $installdir/include/connect/
+COPY: $srcdir/include/connect/ext/*.h        $installdir/include/connect/ext/
+COPY: $srcdir/include/connect/daemons/*.h    $installdir/include/connect/daemons/
+COPY: $srcdir/include/internal/webenv2/id.h  $installdir/include/internal/webenv2/
+
+POSTBUILD: [ "$platform" != "Cygwin32" ] || { cp -v /bin/{cyggcc_s-1.dll,cygrunsrv.exe,cygwin1.dll,cygz.dll} $installdir/bin/; }
+POSTBUILD: [ "$platform" != "Cygwin32" ] || { cp -v /usr/{bin/cygcheck.exe,bin/ipcs.exe,sbin/cygserver.exe} $installdir/bin/; }
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+Linux32-Centos  : ICC   : ICC.sh         --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile
+Linux32-Centos  : GCC   : GCC.sh         --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile
+Linux64-Centos  : ICC   : ICC.sh         --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile
+Linux64-Centos  : GCC   : GCC.sh 4.4.2   --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile --without-version
+FreeBSD32       : GCC   : GCC.sh         --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile --without-version
+SunOSx86        : GCC   : GCC.sh         --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile
+SunOSx86        : WS32  : WorkShop.sh 32 --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile
+SunOSSparc      : WS64  : WorkShop.sh 64 --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile
+SunOSSparc      : WS32  : WorkShop.sh 32 --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile
+SunOSSparc      : GCC   : GCC.sh         --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile
+IntelMAC        : GCC   : GCC.sh         --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --with-flat-makefile --with-universal=i386,x86_64
+Cygwin32        : GCC   : GCC.sh         --with-local-lbsm --without-debug --without-mt --with-static --without-serial --without-runpath --without-flat-makefile

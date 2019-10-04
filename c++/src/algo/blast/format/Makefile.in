@@ -1,0 +1,6 @@
+# $Id: Makefile.in 165919 2009-07-15 16:50:05Z avagyanv $
+
+LIB_PROJ = xblastformat
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

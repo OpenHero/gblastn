@@ -5,7 +5,7 @@
 #include <Windows.h>
 #define time_type __int64
 #else
-#include <sys/timeb.h>
+#include <sys/time.h>
 #define __int64 long long
 #define time_type __int64 
 #endif
@@ -16,6 +16,7 @@
 #include <fstream>
 #include <string>
 #include <map>
+#include <iostream>
 
 
 using namespace std;

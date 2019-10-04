@@ -1,0 +1,10 @@
+# $Id: Makefile.mmdb.lib 208340 2010-10-15 18:36:49Z serovav $
+
+WATCHERS = ucko
+
+ASN = mmdb1 mmdb2 mmdb3
+
+CPPFLAGS = -I$(srcdir) -I$(top_srcdir)/src/objects/mmdb $(ORIG_CPPFLAGS)
+
+LIB = mmdb
+SRC = $(ASN:%=%__) $(ASN:%=%___)

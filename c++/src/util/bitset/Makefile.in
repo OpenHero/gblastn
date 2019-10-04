@@ -1,0 +1,6 @@
+# $Id: Makefile.in 85718 2006-07-10 20:10:11Z kuznets $
+
+SUB_PROJ = test demo
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

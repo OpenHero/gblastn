@@ -1,0 +1,88 @@
+corelib
+util
+connect
+cgi
+html
+misc
+serial
+db
+dbapi
+objects
+objmgr
+objtools
+ctools
+app
+build-system
+algo
+check
+sample
+gui
+internal/test/corelib
+internal/test/misc/xmlwrapp
+internal/demo/misc/xmlwrapp
+internal/third_party/affy
+internal/third_party/sybase/os
+internal/objects
+internal/misc/dbapi_driver_wrap_s
+internal/egene
+internal/ID/utils$
+internal/align_model$
+internal/sss
+internal/ssssrv
+internal/stax
+internal/ncbi_ls
+internal/ncbils2
+internal/msgmail2
+internal/geo
+internal/spellsrvbase$
+internal/idx$
+internal/sidx$ update-only
+internal/ilink$
+internal/ilinkX$ update-only
+internal/homologene
+internal/idxext update-only
+internal/idxext/.*/libs
+internal/auxlib/tiol$
+internal/portal/backend/HTB$
+internal/portal/ncqueryhistory$
+internal/a1/u2
+internal/a1/idfetch
+internal/eutils/edirect
+internal/util/testipub
+internal/util/pstub
+internal/util/xdb
+internal/gbench
+internal/vftp/fgi
+internal/txxmldoc
+internal/txclient
+internal/txserver
+internal/txserver14
+internal/myncbi$
+internal/signon3$
+internal/mapview/objects
+internal/mapview/util$ update-only
+internal/mapview/ideogram/coord_remap$
+internal/sra
+internal/algo/id_mapper
+internal/algo/align/prosplign
+internal/blast
+internal/asn_cache/lib$
+internal/asn_cache/app$ update-only
+internal/aligndb
+internal/gpipe/align_db
+internal/gpipe/common$
+internal/gpipe/objects/gencoll_load$
+internal/gpipe/objects/genomecoll$
+internal/gpipe/objects/manifest$
+internal/gpipe/grid_wrapper$
+internal/gpipe/gencoll/src/gcaccess$
+internal/gpipe/gencoll/src/gc_load_utils$
+internal/gpipe/gpinit/src/api$
+internal/gpipe/gpinit/src/gpinit_compare$
+internal/gpipe/gpexec/queue/lib$
+internal/gpipe/action_nodes/src$ update-only
+internal/snp
+internal/qall update-only
+internal/spell update-only
+common update-only
+-internal/gbench/app/contig

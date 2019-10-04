@@ -1,0 +1,189 @@
+2013-01-23 12:07:54:
+    Finalize version 1.7.1, with the following major changes relative to 1.7.0:
+     * Fix handling of backend connection validators to avoid crashes or
+       gradual leaks.
+     * Use a separate (and normally shorter) timeout for database
+       logins than for subsequent backend operations.
+     * Further improve logging for requests that underwent asynchronous
+       retries; in particular, stop the timer when the reply is complete,
+       even if other associated threads are still waiting for backends.
+
+2013-01-03 15:12:09:
+    Finalize version 1.7.0, with the following major changes relative to 1.6.3:
+     * Advance to 11.0 stable components, picking up various improvements to
+       base libraries.
+     * Introduce a custom service mapper that supplements LBSM assessments
+       of backends with internal feedback reflecting their recent usability.
+     * Take proper advantage of dynamic service mapping in general.
+     * Set DBAPI cancellation timeouts to make unresponsive backends even
+       less of a problem.
+     * Cut the shutdown grace period short when all client connections have
+       wrapped up.
+
+2012-10-26 15:06:13:
+    Finalize version 1.6.3, with the following major changes relative to 1.6.2:
+     * Log well-formed requests in their entirety as ASN.1 text.
+     * Fix probing to time out properly, and to yield more useful logs.
+     * Make sure to deliver internally generated error responses promptly.
+     * Comply better with the CServer framework's expectations, avoiding
+       possible crashes or stuck client connections in some circumstances.
+     * Allow for more graceful shutdowns (with a configurable delay).
+
+2012-08-20 10:36:41:
+    Finalize version 1.6.2, with the following major changes relative to 1.6.1:
+     * Fix possible crashes and deadlocks that could still occur,
+       particularly in the case of slow backends or impatient clients.
+
+2012-07-26 13:23:38:
+    Finalize version 1.6.1, with the following major changes relative to 1.6.0:
+     * Generally improve robustness and performance.
+     * Log backends' addresses rather than their names, which may not be
+       worth trying to determine.
+     * Make os_gateway.sh usable outside of Task Manager too.
+
+2012-06-13 16:28:21:
+    Finalize version 1.6.0, with the following major changes relative to 1.5.0:
+     * Advance to 10.0 stable components, picking up various improvements to
+       base libraries.
+     * Properly count asynchronous retries (as introduced in 1.4.0) towards
+       the overall retry limit.
+     * Tweak diagnostic output; in particular, use warnings rather than errors
+       in the remaining cases in which the overall request could still
+       eventually succeed but make sure to report errors when it does fail.
+     * Allow more backend connections to help accommodate peak load.
+     * Report counts of active and idle client connections to confirm that
+       the new backend connection limit is sensible.
+     * Flag connections as idle only when it is actually safe to do so.
+     * Switch to a simpler (streamlined) internal timestamp representation.
+     * Compensate for older clients that mistakenly specify log:phid rather
+       than log:ncbi_phid.
+
+2012-03-23 10:39:40:
+    Finalize version 1.5.0, with the following major changes relative to 1.4.2:
+     * Advance to 9.0 stable components, picking up various improvements to
+       base libraries (notably to the CServer framework) and the build system;
+       take the opportunity to include debug symbols in optimized builds.
+     * Arrange to run potentially slow, non-urgent housekeeping tasks in
+       worker threads to avoid tying up the main event loop.
+     * Fix a bug accidentally introduced in 1.4.2 that could interfere
+       with proper backend connection initialization.
+
+2012-02-23 13:38:45:
+    Finalize version 1.4.2, with the following major changes relative to 1.4.1:
+     * Rework backend-handling code to streamline connection establishment
+       and avoid a deadlock scenario 1.4.1 accidentally introduced.
+     * Arrange to log all events associated with a given request (including
+       retries in new threads) with a single request ID and context.
+     * Improve abandoned-operation logging: lower the severity to Warning
+       and note timing details.  (Tweak configuration to ensure that
+       backtraces still make it into logs.)
+
+2012-01-27 14:50:43:
+    Finalize version 1.4.1, with the following major changes relative to 1.4.0:
+     * Lock more around establishing backend database connections,
+       eliminating races that may have led to 1.4.0's frequent crashes.
+     * Log details of apparent badly formatted input.
+
+2012-01-06 14:59:21:
+    Finalize version 1.4.0, with the following major changes relative to 1.3.1:
+     * Advance to 8.0 stable components, picking up various improvements in
+       base libraries.  (Also, build only 64-bit binaries, using GCC 4.4.2.)
+     * Cope with potential backend slowness by imposing a timeout after
+       which a new thread will (carefully!) fill in for a stuck one.
+     * Generally allow non-integer timeouts, and reduce the default
+       accept_timeout from 600 to 1, noting that it actually governs the
+       frequency of housekeeping, including the new alarm checks.
+     * Rework log metadata management to ensure proper request delimiting
+       in all cases.
+
+2010-12-22 11:57:11:
+    Finalize version 1.3.1, with the following major changes relative to 1.3.0:
+     * Allow cross-service sharing of DBAPI objects as appropriate.
+     * Ensure that connection-pool cleanup occurs regularly rather than
+       waiting indefinitely for idleness.
+     * Support (trial) backends not known to the load balancer.
+     * Log more information that may ease troubleshoooting.
+
+2010-08-17 15:46:05:
+    Finalize version 1.3.0, with the following major changes relative to 1.2.3:
+     * Advance to 6.x stable components (dbase 6.1, otherwise 6.0),
+       picking up various improvements in base libraries.
+     * Support hard and soft limits on the number of client connections.
+     * Generally improve timeout handling.
+     * Improve backend selection; in particular, correct server
+       preference logic and ensure pool diversity to limit the
+       potential impact of bad backends.
+     * Adapt to in-house CentOS systems, which lack the pidof utility
+       (but still at least have pgrep).
+     * Allow more threads (100, not just 10).
+
+2009-12-28 15:46:36:
+    Finalize version 1.2.3, with the following major changes relative to 1.2.2:
+     * Support checking that LBSMD hasn't wrongly given up on any ports.
+     * Keep track of empty "ping" requests, and log their counts periodically.
+     * Correct handling of requests containing long (>= 128-byte) strings.
+
+2009-06-03 10:50:46:
+    Slip a belated infrastructure change into version 1.2.2 (binaries
+    untouched):
+     * Adjust LBSMD penalty-calculation feedback script to avoid barrages
+       of notifications under some circumstances.
+
+2009-05-22 10:51:07:
+    Finalize version 1.2.2, with the following major changes relative to 1.2.1:
+     * Pick up latest fixes to 4.0.0 stable components.
+     * Fix a logic error that could lead to null pointer exceptions.
+     * Try resetting the DB connection factory when it yields no backends,
+       to compensate for overly persistent blacklisting.
+
+2009-05-06 14:52:59:
+    Slip belated infrastructure changes into version 1.2.1 (binaries untouched):
+     * Track probe results and report appropriate penalties to LBSMD.
+     * Have os_gateway.sh bomb out and send mail if /log/srv is unwritable.
+
+2009-04-06 13:17:21:
+    Finalize version 1.2.1, with the following major changes relative to 1.2.0:
+     * Pick up latest fixes to 4.0.0 stable components.
+     * Fix a logic error that could result in truncated responses when
+       using the FreeTDS driver.
+     * Ensure that exceptions that somehow slip through the cracks
+       receive proper backtraces to help debug their causes.
+
+2009-02-25 16:43:15:
+    Put the final touches on what is to be version 1.2.0, with the following
+    major changes relative to 1.1.1:
+     * Switch to newer base libraries (the 4.0.0 components).
+     * Support for the FreeTDS driver, now used by default.  (The commercial
+       ctlib driver remains available by explicit request.)
+     * Accommodation of transient backend errors.
+     * More logging improvements (mainly streamlining).
+
+2008-08-06 16:24:56:
+    Finalized version 1.1.1, with the following major changes (taken from the
+    trunk) relative to 1.1.0:
+     * Better integration with TaskManager.
+     * Further logging improvements.
+     * No longer crashes when receiving certain malformatted requests.
+
+2008-06-12 15:15:39.461659:
+    Cloned from release 1.1.0
+
+2008-05-06 14:55:19:
+    Finalized version 1.1.0, with the following major changes (taken from the
+    trunk) relative to 1.0.1:
+     * Logging brought more closely in line with other apps (particularly CGIs).
+     * Better recovery from backend errors.
+     * Somewhat favors local backends for efficiency.
+
+2008-05-06 11:49:27.103693:
+    Cloned from release 1.0.1
+
+2008-02-14 14:16:19:
+    Finalized version 1.0.1, with the following major changes relative to
+    1.0.0:
+     * Switch to slightly newer base libraries (still from the trunk).
+     * Support for, and use of, --without-dll to produce self-contained
+       executables.
+
+2008-02-04 14:17:13
+    Finalized (initial) 1.0.0 release, based on sources from 2008-01-30.

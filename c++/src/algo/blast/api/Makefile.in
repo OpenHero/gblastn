@@ -1,0 +1,13 @@
+# $Id: Makefile.in 161488 2009-05-28 02:37:03Z ucko $
+
+# Meta-makefile("ALGO" project)
+#################################
+
+
+LIB_PROJ = xblast
+# SUB_PROJ = unit_test
+
+
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

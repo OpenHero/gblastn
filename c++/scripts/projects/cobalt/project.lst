@@ -1,0 +1,6 @@
+#include "../blast/project.lst"
+algo/tree
+algo/phy_tree
+algo/align$
+algo/align/nw
+algo/cobalt

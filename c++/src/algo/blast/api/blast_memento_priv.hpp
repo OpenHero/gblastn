@@ -79,6 +79,7 @@ private:
 	//added by kyzhao for GPU blastn
 	/* *********** START ************* */
 	BlastGPUOptions* m_GpuOpts;     
+    
 	/* ********** FINISH ************* */
 
     // The originator
