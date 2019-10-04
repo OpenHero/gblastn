@@ -4745,14 +4745,10 @@ ncbi_compiler_ver="0"
 
 if test "$GCC" = "yes" ; then
    compiler_ver="`$real_CXX -dumpversion 2>&1`"
-   case "$compiler_ver" in
-     2.95* | 2.96* | 3.* | 4.* )
-       compiler="GCC"
-       ncbi_compiler="GCC"
-       ncbi_compiler_ver="$compiler_ver"
-                 WithFeatures="$WithFeatures${WithFeaturesSep}GCC"; WithFeaturesSep=" "
-       ;;
-   esac
+   compiler="GCC"
+   ncbi_compiler="GCC"
+   ncbi_compiler_ver="$compiler_ver"
+             WithFeatures="$WithFeatures${WithFeaturesSep}GCC"; WithFeaturesSep=" "
 elif test "$KCC" = "yes" ; then
    compiler_ver="$kcc_ver"
    compiler="KCC"
@@ -5012,19 +5008,34 @@ compiler_root=`echo $CXX | sed -ne 's:\(.*\)[/\\]bin[/\\].*:\1:p'`
 
 
 #### Multi-Thread safety
-with_mt=${with_mt:="no"}
-if test "$with_mt" = "yes" ; then
+# Historically off by default; respect that when reconfiguring old builds.
+if test -z "$with_mt" -a -f "$NCBI_OLD_STATUS_DIR/-MT.enabled"; then
+    with_mt=no
+fi
+
+if test "$with_mt" != "no" ; then
+   with_mt=yes
    case "$host_os:$compiler" in
-    darwin* | irix* | cygwin*)  ;;
+    darwin* | irix* | cygwin* | *:Cray ) ;;
     solaris*:WorkShop*       )  : ${MT_FLAG:="-mt"} ;;
     solaris*:GCC             )  : ${MT_FLAG:="-pthreads"} ;;
     *:KCC                    )  : ${MT_FLAG:="--thread_safe"} ;;
     *:Compaq | *:GCC | *:ICC )  : ${MT_FLAG:="-pthread"} ;;
     *:VisualAge              )  : ${MT_FLAG:="-qthreaded"} ;;
-    * )   { { echo "$as_me:$LINENO: error: Do not know how to build MT-safe with compiler $CXX $compiler_ver" >&5
-echo "$as_me: error: Do not know how to build MT-safe with compiler $CXX $compiler_ver" >&2;}
+    * )
+       msg="Do not know how to build MT-safe with compiler $CXX $compiler_ver"
+       case "$with_mt" in
+          yes ) { { echo "$as_me:$LINENO: error: $msg" >&5
+echo "$as_me: error: $msg" >&2;}
    { (exit 1); exit 1; }; } ;;
+          ''  ) { echo "$as_me:$LINENO: WARNING: $msg" >&5
+echo "$as_me: WARNING: $msg" >&2;}; with_mt=no ;;
+       esac
+       ;;
    esac
+fi
+
+if test "$with_mt" != "no" ; then
    CPPFLAGS="$CPPFLAGS -D_MT -D_REENTRANT -D_THREAD_SAFE"
    case "$host_os:$compiler" in
      solaris2.10:GCC ) : ${THREAD_LIBS:="-lposix4"} ;;
@@ -5049,6 +5060,30 @@ echo "$as_me: error: Do not know how to build MT-safe with compiler $CXX $compil
         ;;
      * ) NCBIATOMIC_LIB=xncbi ;;
    esac
+   case "$compiler" in
+      GCC )
+         if $CC -v 2>&1 | grep clang >/dev/null; then
+            :
+            # Will allegedly support -openmp at some point, but as of 3.4,
+            # just parses it as specifying an output filename: -o penmp.
+         else
+            case "$compiler_version" in
+               [123]?? | 4[01]? ) ;;
+               * ) : ${OPENMP_FLAGS=-fopenmp} ;;
+            esac
+         fi
+         ;;
+      ICC )
+         : ${OPENMP_FLAGS=-openmp}
+         ;;
+      WorkShop* )
+         : ${OPENMP_FLAGS=-xopenmp=parallel}
+         ;;
+   esac
+   if test "$with_openmp" = yes; then
+      MT_FLAG="$MT_FLAG $OPENMP_FLAGS"
+      OPENMP_FLAGS=
+   fi
    mt_sfx="MT"
              WithFeatures="$WithFeatures${WithFeaturesSep}MT"; WithFeaturesSep=" "
 else
@@ -5056,6 +5091,7 @@ else
    MT_FLAG=
    THREAD_LIBS=
    NCBIATOMIC_LIB=
+   OPENMP_FLAGS=
    mt_sfx=""
 fi
 MT_SFX="${mt_sfx}"
@@ -5067,6 +5103,12 @@ LDFLAGS="$MT_FLAG $LDFLAGS"
 
 APP_LDFLAGS=
 DLL_LDFLAGS=
+
+#### Provide default environment setup for known platforms/compilers
+DEPFLAGS="-M"
+DEPFLAGS_POST="" # Needed for VisualAge
+OBJCXX_CXXFLAGS=
+OBJCXX_LIBS=
 
 case "$host_os:$compiler" in
    darwin*:GCC )
