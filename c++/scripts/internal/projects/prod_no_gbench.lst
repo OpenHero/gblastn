@@ -1,0 +1,4 @@
+#include "production.lst"
+-gui/plugins
+-gui/gbench
+-internal/gbench

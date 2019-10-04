@@ -1,0 +1,16 @@
+corelib
+common
+util
+cgi$
+connect
+html$
+dbapi$
+dbapi/driver
+internal/pmc3
+internal/pubmedxml/$
+internal/pubmedxml/include
+internal/pubmedxml/Libs/$
+internal/myncbi
+internal/sss
+internal/ssssrv
+internal/stax

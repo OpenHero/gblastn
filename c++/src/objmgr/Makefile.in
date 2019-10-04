@@ -1,0 +1,9 @@
+# $Id: Makefile.in 32467 2004-01-05 17:59:34Z vasilche $
+
+REQUIRES = objects
+
+LIB_PROJ = objmgr
+SUB_PROJ = test util split
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

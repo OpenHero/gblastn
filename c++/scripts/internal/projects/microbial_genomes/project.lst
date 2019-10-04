@@ -1,0 +1,67 @@
+corelib$
+corelib/impl$ update-only
+corelib/hash_impl$ update-only
+
+algo/phy_tree$ update-only
+algo/tree$ update-only
+
+serial$
+serial/datatool$
+
+util$
+util/bitset$ update-only
+util/sequtil$
+util/math$
+
+objects$
+objects/biblio$
+objects/general$
+objects/medline$
+objects/pub$
+objects/seqalign$
+objects/seqblock$
+objects/seqfeat$
+objects/seqloc$
+objects/seqres$
+objects/seqtable$
+objects/seq$
+objects/seqcode$
+objects/sequtil$
+objects/seqset$
+objects/biotree$
+objects/misc$
+
+internal$
+internal/microbial_genomes$
+internal/microbial_genomes/protein_clustering
+
+-.*/unit_test/
+-.*/test/
+-.*/demo/
+
+###############################################
+#corelib/impl update-only
+
+#util$
+#util/sequtil
+#util/math
+
+#serial$ update-only
+#serial/datatool$ update-only
+
+#connect$
+
+#objects$
+#objects/misc
+#objects/taxon1 update_only
+#objects/seqedit
+#objects/seqcode
+#objects/general$
+
+#objmgr$
+#objmgr/impl
+
+#objtools
+#objtools/alnmgr$
+
+#algo$ update_only

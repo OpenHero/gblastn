@@ -1,0 +1,4 @@
+# $Id: Makefile.in 156738 2009-04-07 16:35:10Z ucko $
+ASN_PROJ = valid
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

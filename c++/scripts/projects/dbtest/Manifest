@@ -1,0 +1,42 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 382083 2012-12-03 16:51:07Z satskyse $
+#
+# Author: Pavel Ivanov
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+APP: test_stat_load
+# APP: test_stat_ext.cgi -- it is built not on all platforms, so will be copied by script
+
+COPY: $srcdir/src/internal/cppcore/test_stat_ext/db_structure.sql $installdir
+COPY: $srcdir/src/internal/cppcore/test_stat_ext/loader/test_stat_load.ini $installdir/bin
+COPY: $srcdir/src/internal/cppcore/test_stat_ext/loader/test_stat_load.sh $installdir/bin
+
+POSTBUILD: $srcdir/scripts/projects/dbtest/post_build/copy_cgi.sh $bindir $srcdir $installdir/bin
+
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+
+Linux32-Centos    : plain : GCC.sh           --without-debug --without-mt --with-static --with-flat-makefile
+
+Linux64-Centos    : plain : GCC.sh           --without-debug --without-mt --with-static --with-flat-makefile
+
+FreeBSD32  : plain : GCC.sh           --without-debug --without-mt --with-static --with-flat-makefile
+
+SunOSx86   : plain : WorkShop.sh 32   --without-debug --without-mt --with-static --with-flat-makefile
+
+SunOSSparc : plain : WorkShop.sh 32   --without-debug --without-mt --with-static --with-flat-makefile
+
+IntelMAC   : plain : GCC.sh           --without-debug --without-mt --with-static --with-flat-makefile --with-universal=i386,x86_64
+
+Win32_10    : plain : static  32  ReleaseDLL

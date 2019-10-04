@@ -1,0 +1,10 @@
+corelib$
+util$
+util/compress
+util/regexp$
+util/cache$
+connect$
+connect/ext$
+dbapi
+misc/third_party
+misc/third_party_static

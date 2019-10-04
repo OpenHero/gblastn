@@ -1,0 +1,16 @@
+# $Id: Makefile.xalgoblastdbindex.lib 186303 2010-03-18 18:56:34Z ivanov $
+
+LIB = xalgoblastdbindex
+
+SRC = sequence_istream_fasta \
+      sequence_istream_bdb \
+      dbindex \
+      dbindex_factory \
+      dbindex_search
+
+CXXFLAGS = -DDO_INLINE $(FAST_CXXFLAGS)
+LDFLAGS  = $(FAST_LDFLAGS)
+
+ASN_DEP = seqset
+
+WATCHERS = morgulis

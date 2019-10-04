@@ -1,0 +1,10 @@
+# $Id: Makefile.in 88982 2006-08-31 15:53:40Z bealer $
+
+# Meta-makefile("WRITEDB" project)
+#################################
+
+LIB_PROJ = writedb
+SUB_PROJ = unit_test
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

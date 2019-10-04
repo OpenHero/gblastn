@@ -1,0 +1,19 @@
+# $Id: Makefile.blastdb_format.lib 372427 2012-08-17 13:57:21Z camacho $
+
+WATCHERS = maning camacho
+
+ASN_DEP = xnetblast blastdb
+
+###  BASIC PROJECT SETTINGS
+LIB = blastdb_format
+SRC = seq_writer blastdb_dataextract blastdb_formatter
+# OBJ =
+
+CPPFLAGS = $(ORIG_CPPFLAGS)
+
+
+###  EXAMPLES OF OTHER SETTINGS THAT MIGHT BE OF INTEREST
+# CFLAGS   = $(FAST_CFLAGS)
+# CXXFLAGS = $(FAST_CXXFLAGS)
+#
+# LIB_OR_DLL = dll

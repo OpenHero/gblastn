@@ -1,0 +1,6 @@
+# $Id: Makefile.seqtest.lib 45612 2004-08-19 16:28:10Z jcherry $
+
+ASN = seqtest
+
+LIB = seqtest
+SRC = $(ASN:%=%__) $(ASN:%=%___)

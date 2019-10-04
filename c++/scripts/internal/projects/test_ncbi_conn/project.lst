@@ -1,0 +1,15 @@
+./include/corelib$
+./include/corelib/impl$
+./include/util$
+./include/common$
+util
+corelib
+connect$
+connect/test
+connect/impl$
+connect/ext
+connect/daemons$
+connect/daemons/mod$
+internal/util/testipub$
+internal/webenv2 update-only
+

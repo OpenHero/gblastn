@@ -1,0 +1,52 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 387402 2013-01-29 17:30:01Z gouriano $
+#
+# Author: Sergey Satskiy
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+APP: project_tree_builder
+# APP: test_ncbi_disp -- not now
+
+# The -t key prevents inclusion of the tree builder into the release
+# SVN_TAG_RELEASE_ADD_FLAGS: -t
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+
+#Linux32-Centos    : plain : ICC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+Linux32-Centos    : plain : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+#Linux32-Centos    : debug : GCC.sh           --with-debug    --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+
+#Linux64-Centos    : plain : ICC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+Linux64-Centos    : plain : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+
+Linux64-Ubuntu    : plain : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+
+FreeBSD32  : plain : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c --without-pcre
+
+#SunOSx86   : plain : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c --without-dll
+SunOSx86    : plain : WorkShop59.sh 32 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+#SunOSx86   : plain : WorkShop59.sh 64 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+
+#SunOSSparc : plain : WorkShop55.sh 64 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+SunOSSparc : plain : WorkShop59.sh 32 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+#SunOSSparc : plain : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+
+#PowerMAC   : plain : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+IntelMAC   : plain : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --without-ncbi-c
+#IntelMAC    : universal : GCC.sh        --without-debug --without-mt  --with-static --with-universal=i386,x86_64 --with-flat-makefile --without-ncbi-c
+
+#Win32_9    : 900 : static  32  ReleaseMT
+Win32_10    : 1000 : static  32  ReleaseMT
+
+XCode      : plain  : Xcode.sh 30 --without-debug --with-universal=i386,x86_64 --without-ncbi-c

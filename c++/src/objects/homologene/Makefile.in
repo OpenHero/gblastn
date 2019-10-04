@@ -1,0 +1,9 @@
+# $Id: Makefile.in 143570 2008-10-20 19:09:50Z gouriano $
+
+# Meta-makefile ("homologene" library)
+#################################
+
+ASN_PROJ = homologene
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

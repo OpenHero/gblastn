@@ -1,0 +1,15 @@
+WATCHERS = camacho maning 
+
+REQUIRES = objects
+
+APP = convert2blastmask
+SRC = convert2blastmask
+
+LIB = seqmasks_io $(BLAST_LIBS) $(OBJMGR_LIBS:%=%$(STATIC))
+
+CFLAGS   = $(FAST_CFLAGS)
+CXXFLAGS = $(FAST_CXXFLAGS)
+LDFLAGS  = $(FAST_LDFLAGS)
+
+CPPFLAGS = $(ORIG_CPPFLAGS)
+LIBS = $(CMPRS_LIBS) $(DL_LIBS) $(NETWORK_LIBS) $(ORIG_LIBS)

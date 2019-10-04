@@ -1,0 +1,17 @@
+# $Id: Makefile.ncbi_xreader_id1.lib 190691 2010-05-04 15:42:43Z vakatov $
+
+SRC = reader_id1
+
+LIB = ncbi_xreader_id1
+
+ASN_DEP = id1 id2
+
+# Build shared version when possible
+LIB_OR_DLL = both
+
+# Dependencies for shared library
+DLL_LIB = xconnect ncbi_xreader$(DLL)
+
+CPPFLAGS = $(ORIG_CPPFLAGS) $(CMPRS_INCLUDE)
+
+WATCHERS = vasilche

@@ -1,0 +1,9 @@
+# $Id: Makefile.in 90680 2006-09-27 15:29:06Z morgulis $
+
+# Meta-makefile("ALGO" project)
+#################################
+
+APP_PROJ = makeindex
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

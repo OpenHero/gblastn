@@ -1,0 +1,2 @@
+LIB = scoremat
+SRC = scoremat__ scoremat___

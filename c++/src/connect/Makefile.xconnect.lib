@@ -1,0 +1,19 @@
+# $Id: Makefile.xconnect.lib 184358 2010-02-26 16:33:57Z ivanov $
+#
+# XCONNECT -- includes:
+#    CONNECT API (C-only, sources shared with the C Toolkit), plus
+#    auxiliary C++ API to use CONNECT API from the C++ Toolkit
+
+
+include $(srcdir)/Makefile.connect.lib
+include $(srcdir)/Makefile.xxconnect.lib
+
+SRC  = $(SRC_C) $(SRC_CXX)
+UNIX_SRC = $(LOCAL_LBSM)
+
+LIB  = xconnect
+PROJ_TAG = core
+
+LIBS = $(NETWORK_LIBS) $(ORIG_LIBS)
+
+WATCHERS = lavr

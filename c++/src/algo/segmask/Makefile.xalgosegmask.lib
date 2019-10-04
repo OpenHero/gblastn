@@ -1,0 +1,13 @@
+# $Id: Makefile.xalgosegmask.lib 208954 2010-10-21 19:09:21Z camacho $
+
+WATCHERS = blastsoft
+
+ASN_DEP = seqset
+
+LIB = xalgosegmask
+
+SRC = segmask
+
+CXXFLAGS = $(FAST_CXXFLAGS)
+LDFLAGS  = $(FAST_LDFLAGS)
+

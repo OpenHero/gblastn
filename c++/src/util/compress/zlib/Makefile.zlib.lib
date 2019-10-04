@@ -1,0 +1,13 @@
+# $Id: Makefile.zlib.lib 184358 2010-02-26 16:33:57Z ivanov $
+
+SRC = adler32 ncbi_z_compress crc32 gzio uncompr deflate trees \
+      zutil inflate infback inftrees inffast
+
+LIB = z
+
+CPPFLAGS = $(ORIG_CPPFLAGS) -I$(includedir)/util/compress/zlib
+
+CFLAGS   = $(FAST_CFLAGS)
+LDFLAGS  = $(FAST_LDFLAGS)
+
+WATCHERS = ivanov

@@ -1,0 +1,36 @@
+# $Id: Makefile.blastinput.lib 379526 2012-11-01 17:42:42Z ucko $
+
+SRC_CXX = \
+blast_input \
+blast_fasta_input \
+blast_scope_src \
+blast_args \
+cmdline_flags \
+blast_input_aux \
+blastp_args \
+blastn_args \
+rmblastn_args \
+blastx_args \
+tblastn_args \
+tblastx_args \
+psiblast_args \
+rpsblast_args \
+rpstblastn_args \
+igblastn_args \
+igblastp_args \
+deltablast_args
+
+SRC  = $(SRC_CXX)
+
+LIB = blastinput
+
+DLL_LIB = xblast align_format ncbi_xloader_blastdb_rmt ncbi_xloader_blastdb seqdb xobjread $(OBJMGR_LIBS) xutil
+
+# should be redundant, given the above :-/
+ASN_DEP = seqset xnetblast
+
+CFLAGS   = $(FAST_CFLAGS)
+CXXFLAGS = $(FAST_CXXFLAGS)
+LDFLAGS  = $(FAST_LDFLAGS)
+
+WATCHERS = madden camacho

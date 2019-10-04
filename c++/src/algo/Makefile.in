@@ -1,0 +1,12 @@
+# $Id: Makefile.in 391319 2013-03-06 22:38:49Z camacho $
+
+# Meta-makefile("ALGO" project)
+#################################
+
+SUB_PROJ = dustmask winmask sequence blast segmask align structure ms gnomon \
+           tree phy_tree seqqa cobalt text volume_merge primer
+
+REQUIRES = objects algo
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

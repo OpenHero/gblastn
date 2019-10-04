@@ -1,0 +1,15 @@
+Perl and Python wrappers for querying NCBI's load balancer, covering both
+low-level APIs (from ncbi_connutil.h, ncbi_host_info.h, ncbi_server_info.h,
+ncbi_service.h, and ncbi_types.h, plus the extended SERV_GetInfoP function)
+and a custom high-level ResolveService function:
+
+struct SHostPort {
+    unsigned int   host;
+    unsigned short port;
+};
+
+void ResolveService(vector<SHostPort>* v, const char* name, TSERV_Type type,
+                    const char* arg = NULL, const char* val = NULL);
+
+The vector is an output argument (to avoid extra copying), which the
+wrappers translate to a list of (references to) host-port pairs.

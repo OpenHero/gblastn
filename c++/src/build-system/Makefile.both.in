@@ -1,0 +1,52 @@
+#################################
+# $Id: Makefile.both.in 129104 2008-05-29 18:56:39Z ucko $
+# Author:  Aaron Ucko (ucko@ncbi.nlm.nih.gov)
+#################################
+# This can be used to build/install/clean BOTH
+#
+# a single(sic!) library [LIB] made of object files [SRC] and [OBJ]
+# where [SRC].o will be automagically compiled from [SRC].cpp or
+# [SRC].c, and [OBJ].o must be already compiled by this time.
+#
+# AND
+#
+# a single shared(DLL) library [LIB] made of object files [SRC] and [OBJ]
+# where [SRC].o will be automagically compiled from [SRC].cpp or
+# [SRC].c, and [OBJ].o must be already compiled by this time.
+# The following libs will be used to resolve external references:
+#   [DLL_LIB] or [DLL_DLIB] -- libs located in the NCBI C++ "lib/" dir;
+#   [LIBS]                  -- 3rd-party libs
+#
+# The library will be linked against DLL_DLIB in --with-dll configurations
+# (and --with-gbench configurations) and DLL_LIB otherwise.
+#
+################
+## Example of usage:
+#
+# srcdir = @srcdir@
+# include @builddir@/Makefile.mk
+#
+# LIB = p1
+# SRC = p1_src1 p1_src2
+# OBJ = p1_myobj
+#
+# DLL_LIB  = xncbi
+# LIBS = $(NETWORK_LIBS)
+# .....
+# CXXFLAGS = -g $(ORIG_CXXFLAGS) -D_DEBUG -DXYZ_P1_PROJECT
+# .....
+# include @builddir@/Makefile.both
+#################################
+
+include $(builddir)/Makefile.lib
+@IF_WITH_DLL@ XLIBDEP = $(XLIBDEPLINK)
+@IF_WITH_DLL@ XOLD_DLLS =
+# Kludge: Makefile.lib and Makefile.dll both include Makefile.$(Rules);
+# while including the real version twice should be safe, gmake for one
+# warns about duplicate rules.  Substituting a guaranteed contentless
+# makefile avoids any such problem.
+Rules = is_dll_support
+include $(builddir)/Makefile.dll
+@UNLESS_WITH_DLL@ XDLL_LINK          = $(XDLL)
+@UNLESS_WITH_DLL@ XDLL_LOADABLE_LINK = $(XDLL_LOADABLE)
+@UNLESS_WITH_DLL@ XDLLDEP_LINK       = $(XDLLDEP)

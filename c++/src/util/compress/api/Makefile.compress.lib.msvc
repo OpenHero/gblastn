@@ -1,0 +1,3 @@
+# $Id: Makefile.compress.lib.msvc 278043 2011-04-18 15:28:18Z gouriano $
+[AddToProject]
+HeadersInInclude = ../*.hpp

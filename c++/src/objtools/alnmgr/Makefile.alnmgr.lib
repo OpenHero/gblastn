@@ -1,0 +1,14 @@
+# $Id: Makefile.alnmgr.lib 338246 2011-09-19 14:17:05Z mozese2 $
+
+# Build library "xalnmgr"
+#################################
+ASN_DEP = seqset
+
+LIB = xalnmgr
+SRC = aln_builders aln_converters aln_generators aln_seqid aln_serial	\
+      alndiag alnmap alnmapprint alnmatch alnmerger alnmix alnpos_ci	\
+      alnsegments alnseq alnvec alnvec_iterator alnvecprint		\
+      pairwise_aln sparse_aln sparse_ci alntext score_builder_base
+
+WATCHERS = todorov dicuccio grichenk
+

@@ -1,0 +1,30 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 356702 2012-03-15 20:34:48Z ucko $
+#
+# Author: Sergey Satskiy
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+APP: os_gateway probe_os_gateway simple_os_gateway
+APP: test_osg_conn_pooling test_osgregrouper
+COPY: $srcdir/src/internal/cppcore/os_gateway/*.sh $installdir/bin
+COPY: $srcdir/src/internal/cppcore/os_gateway/os_gateway.ini $installdir/bin
+
+# Use stable components (per components.link) rather than the trunk.
+USE_COMPONENTS
+
+DEFAULT_CONFIGURATIONS: Linux64-Centos:plain
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+Linux64-Centos    : plain : GCC.sh 4.4.2     --without-debug --with-mt --with-sybase-local --without-dll --without-runpath --without-version --with-flat-makefile --with-symbols
+Linux64-Centos    : debug : GCC.sh 4.4.2     --with-debug --with-mt --with-sybase-local --without-dll --without-runpath --without-version --with-flat-makefile

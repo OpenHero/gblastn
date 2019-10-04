@@ -1,0 +1,154 @@
+# -*- makefile-gmake -*-
+#################################
+# $Id: Makefile.dll.in 341641 2011-10-20 23:47:41Z ucko $
+# Author:  Denis Vakatov (vakatov@ncbi.nlm.nih.gov)
+#################################
+# This can be used to build/install/clean
+# a single shared(DLL) library [LIB] made of object files [SRC] and [OBJ]
+# where [SRC].o will be automagically compiled from [SRC].cpp or
+# [SRC].c, and [OBJ].o must be already compiled by this time.
+# The following libs will be used to resolve external references:
+#   [DLL_LIB] or [DLL_DLIB] -- libs located in the NCBI C++ "lib/" dir;
+#   [LIBS]                  -- 3rd-party libs
+#
+# The library will be linked against DLL_DLIB in --with-dll configurations
+# (and --with-gbench configurations) and DLL_LIB otherwise.
+#
+################
+## Example of usage:
+#
+# srcdir = @srcdir@
+# include @builddir@/Makefile.mk
+#
+# LIB = p1
+# SRC = p1_src1 p1_src2
+# OBJ = p1_myobj
+#
+# DLL_LIB  = xncbi
+# LIBS = $(NETWORK_LIBS)
+# .....
+# CXXFLAGS = -g $(ORIG_CXXFLAGS) -D_DEBUG -DXYZ_P1_PROJECT
+# .....
+# include @builddir@/Makefile.dll
+#################################
+
+default_rule: all
+
+
+### C/C++ source file compilation (and maybe auto-dependencies) build rules
+
+CXXFLAGS_ALL = @f_compile@ \
+	$(CXXFLAGS) $(CXXFLAGS_DLL) $(LOCAL_CPPFLAGS) $(CPPFLAGS)
+CFLAGS_ALL   = @f_compile@ \
+	$(CFLAGS) $(CFLAGS_DLL) $(LOCAL_CPPFLAGS) $(CPPFLAGS)
+SOURCES      = @UNIX_SRC@ $(LIBOBJ) $(SRC)
+include $(builddir)/Makefile.$(Rules)
+
+
+### The library build rule
+
+XDLLOBJ       = $(SOURCES:=@obj_ext@)
+XOBJ          = $(OBJ:=@obj_ext@)
+XDLL          = $(LIB:%=@lib_pre@%$(DLL)@dll_ext@)
+XDLL_LINK     = $(LIB:%=@lib_pre@%@dll_ext@)
+XDLL_LOADABLE = $(LIB:%=@lib_pre@%$(DLL)@loadable_ext@)
+XDLL_LOADABLE_LINK = $(LIB:%=@lib_pre@%@loadable_ext@)
+XDLLDEP       = .$(LIB)$(DLL).dep
+XDLLDEP_LINK  = .$(LIB).dep
+XDLL_LIBS     = @DLL_LIB_SETTING@
+XDLL_LIB      = $(runpath) @f_libpath@$(libdir) $(XDLL_LIBS:%=@lib_l_pre@%@lib_l_ext@)
+XDLL_LIBDEP   = $(XDLL_LIBS:%=$(status_dir)/.%.dep)
+
+# This definition loses any trailing #, and is only useful in conditionals.
+has_dll_loadable = @has_dll_loadable@
+
+ifeq "$(LIB_OR_DLL)$(DLL)" "dll-dll"
+  # 1: path, 2: target
+  make_dll_link = cd $(libdir) && $(RM) $(2) && $(LN_S) $(1) $(2)
+  $(status_dir)/$(XDLLDEP_LINK): $(status_dir)/$(XDLLDEP)
+	@cd $(status_dir) && \
+	    $(RM) $(XDLLDEP_LINK) && \
+	    $(LN_S) $(XDLLDEP) $(XDLLDEP_LINK)
+else
+  make_dll_link = :
+endif
+
+$(XDLL): $(XDLLOBJ) $(XDLL_LIBDEP)
+	-$(RM) $(XDLL) .$(XDLL).stamp
+	@has_dll_loadable@-$(RM) $(XDLL_LOADABLE)
+	$(LINK_WRAPPER) $(LINK_DLL) $(XDLL) $(LDFLAGS_DLL) $(DLL_LDFLAGS) $(XDLLOBJ) $(XOBJ) $(XDLL_LIB) $(LIBS) $(LINK_FILTER)
+	@has_dll_loadable@$(LINK_WRAPPER) $(LINK_LOADABLE) $(XDLL_LOADABLE) $(LDFLAGS_DLL) $(DLL_LDFLAGS) $(XDLLOBJ) $(XOBJ) $(XDLL_LIB) $(LIBS) $(LINK_FILTER)
+ifeq "$(wildcard $(XDLLDEP))" ""
+	@echo $(srcdir) $(CURDIR) $(TMPL) > $(XDLLDEP)
+	@$(TOUCH) -r $(XDLL) $(XDLLDEP)
+endif
+ifneq "$(BINCOPY)" "@:"
+  ifneq "$(srcdir)" "."
+    ifneq "$(filter-out /.,$(wildcard $(libdir)/.))" ""
+	@if [ -w $(libdir) ]; then \
+	    echo $(BINCOPY) $(XDLL) $(libdir) && \
+	    $(BINCOPY) $(XDLL) $(libdir) && \
+	    $(call make_dll_link,$(XDLL),$(XDLL_LINK)) ; \
+	fi
+      ifneq "$(has_dll_loadable)" "@"
+	@if [ -w $(libdir) ]; then \
+	    echo $(BINCOPY) $(XDLL_LOADABLE) $(libdir) && \
+	    $(BINCOPY) $(XDLL_LOADABLE) $(libdir) && \
+	    $(call make_dll_link,$(XDLL_LOADABLE),$(XDLL_LOADABLE_LINK)) ; \
+	fi
+      endif
+    endif
+  endif
+endif
+
+EXPORTED_DLLDEP = $(XDLL)
+ifneq "$(BINCOPY)" "@:"
+  ifneq "$(filter-out /.,$(wildcard $(status_dir)/.))" ""
+    can_deactivate_dll = yes
+    ifeq "$(wildcard $(status_dir)/$(XDLLDEP))" ""
+      ifeq "$(make_dll_link)" ":"
+        EXPORTED_DLLDEP = $(status_dir)/$(XDLLDEP)
+      else
+        EXPORTED_DLLDEP = $(status_dir)/$(XDLLDEP_LINK)
+      endif
+    endif
+  endif
+endif
+
+$(status_dir)/$(XDLLDEP): $(XDLL)
+	@$(BINCOPY) $(XDLLDEP) $(status_dir)
+	@$(BINTOUCH) -r $(libdir)/$(XDLL) $(status_dir)/$(XDLLDEP)
+
+export-dlldep: $(EXPORTED_DLLDEP)
+
+### Standard targets
+
+all: export-headers export-dlldep
+
+unlink: unlink-dll
+
+unlink-dll:
+	-$(RM) $(XDLL) $(XDLLDEP) .$(XDLL).stamp
+	@has_dll_loadable@-$(RM) $(XDLL_LOADABLE)
+
+clean: clean-common clean-dll
+
+clean-dll: unlink-dll
+	-$(RM) $(XDLLOBJ)
+
+purge: clean purge-headers deactivate
+
+deactivate: deactivate-dll
+
+deactivate-dll: unlink-dll
+ifeq "$(can_deactivate_dll)" "yes"
+	-$(RM) $(libdir)/$(XDLL) $(status_dir)/$(XDLLDEP)
+	@has_dll_loadable@-$(RM) $(libdir)/$(XDLL_LOADABLE)
+  ifneq "$(DLL)" ""
+	-$(RM) $(libdir)/$(XDLL_LINK) $(status_dir)/$(XDLLDEP_LINK)
+	@has_dll_loadable@-$(RM) $(libdir)/$(XDLL_LOADABLE_LINK)
+  endif
+endif
+
+.PHONY: default_rule all unlink unlink-dll clean clean-dll purge 
+.PHONY: deactivate deactivate-dll export-dlldep

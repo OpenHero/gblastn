@@ -1,0 +1,7 @@
+# $Id: Makefile.in 369976 2012-07-25 15:20:22Z grichenk $
+
+LIB_PROJ = alnmgr
+SUB_PROJ = demo unit_test
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

@@ -1,0 +1,11 @@
+# $Id: Makefile.bzip2.lib 184358 2010-02-26 16:33:57Z ivanov $
+
+SRC = blocksort huffman crctable randtable ncbi_bz2_compress decompress bzlib
+LIB = bz2
+
+CPPFLAGS = $(ORIG_CPPFLAGS) -I$(includedir)/util/compress/bzip2
+
+CFLAGS   = $(FAST_CFLAGS)
+LDFLAGS  = $(FAST_LDFLAGS)
+
+WATCHERS = ivanov

@@ -1,0 +1,32 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 367391 2012-06-25 16:00:52Z ucko $
+#
+# Author: Aaron Ucko
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+#LIB: libncbi_lb_perl588-dll.so libncbi_lb_python25-dll.so
+COPY: $libdir/libncbi_lb_perl588-dll.so $installdir/lib/ncbi_lb.so
+COPY: $libdir/libncbi_lb_python25-dll.so $installdir/lib/_ncbi_lb.so
+COPY: $libdir/../build/internal/cppcore/lb_wrapper/ncbi_lb.p? $installdir/lib/
+
+POSTBUILD: $srcdir/scripts/internal/projects/lb_scripting/post_build/build_tarball.sh $installdir $version
+
+# Use stable components (per components.link) rather than the trunk.
+USE_COMPONENTS
+
+DEFAULT_CONFIGURATIONS: Linux64-Centos:plain
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+Linux64-Centos : plain : GCC.sh 4.4.2 --without-debug --with-mt --without-runpath --with-flat-makefile --with-internal
+Linux64-Centos : debug : GCC.sh 4.4.2 --with-debug --with-mt --without-runpath --with-flat-makefile --with-internal

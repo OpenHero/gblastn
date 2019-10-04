@@ -1,0 +1,4 @@
+# $Id: Makefile.macro.lib 310762 2011-07-05 20:29:59Z ucko $
+
+LIB = macro
+SRC = macro__ macro___

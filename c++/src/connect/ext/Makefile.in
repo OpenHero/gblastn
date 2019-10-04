@@ -1,0 +1,11 @@
+# $Id: Makefile.in 74789 2005-12-23 19:58:58Z lavr $
+# Authors:  Anton Lavrentiev
+#
+# Connect lib extension
+#################################
+
+LIB_PROJ = connext xconnext
+SUB_PROJ = test
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

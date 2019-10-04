@@ -1,0 +1,6 @@
+# $Id: Makefile.xblast.lib.unix 366594 2012-06-15 15:08:33Z ucko $
+
+# Adjust ICC flags to avoid problematic references to __svml_* functions.
+CORE = .core_
+CORE_SRCDIR = .
+include $(srcdir)/../core/Makefile.blast.lib.unix

@@ -1,0 +1,12 @@
+# $Id: Makefile.in 134303 2008-07-17 17:42:49Z camacho $
+
+# Meta-makefile("ALGO" project)
+#################################
+
+
+LIB_PROJ = blastinput
+SUB_PROJ = unit_test demo
+#EXPENDABLE_SUB_PROJ = demo
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

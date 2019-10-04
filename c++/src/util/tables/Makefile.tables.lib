@@ -1,0 +1,6 @@
+# $Id: Makefile.tables.lib 184358 2010-02-26 16:33:57Z ivanov $
+
+LIB = tables
+SRC = raw_scoremat
+
+WATCHERS = ucko

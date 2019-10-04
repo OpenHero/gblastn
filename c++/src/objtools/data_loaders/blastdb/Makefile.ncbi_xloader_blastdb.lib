@@ -1,0 +1,8 @@
+# $Id: Makefile.ncbi_xloader_blastdb.lib 194681 2010-06-16 16:03:59Z vakatov $
+
+LIB = ncbi_xloader_blastdb
+SRC = bdbloader cached_sequence local_blastdb_adapter
+
+ASN_DEP = blastdb seqset
+
+WATCHERS = camacho

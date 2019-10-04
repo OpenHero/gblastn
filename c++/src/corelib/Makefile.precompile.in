@@ -1,0 +1,14 @@
+# $Id: Makefile.precompile.in 104263 2007-05-21 15:15:00Z ucko $
+
+include $(builddir)/Makefile.mk
+include $(builddir)/Makefile.$(Rules)
+
+ALL =@GCCPCH@ $(pchdir)/normal $(pchdir)/dll $(pchdir)/fast $(pchdir)/fastdll
+
+all all_p all_r: $(ALL)
+
+clean clean_p clean_r:
+
+purge purge_p purge_r:
+	-$(RMDIR) $(pchdir)
+	-$(RM) ncbi_pch_impl.hpp.d.*

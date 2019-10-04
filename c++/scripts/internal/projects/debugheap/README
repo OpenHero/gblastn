@@ -1,0 +1,7 @@
+NCBI debug heap library
+
+The library intercepts memory allocation calls and collects stack traces for them.
+Later on the collected trees can be viewed in a log file.
+
+See CXX-3575 for details
+

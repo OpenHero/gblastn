@@ -1,0 +1,13 @@
+# $Id: Makefile.blast_app_util.lib 304595 2011-06-15 11:59:34Z fongah2 $
+
+WATCHERS = camacho madden maning fongah2
+
+LIB = blast_app_util
+SRC = blast_app_util
+LIB_OR_DLL = lib
+
+CFLAGS   = $(FAST_CFLAGS)
+CXXFLAGS = $(FAST_CXXFLAGS)
+
+ASN_DEP = blastdb xnetblast
+REQUIRES = objects

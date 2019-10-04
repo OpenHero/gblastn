@@ -1,0 +1,22 @@
+# $Id: Makefile.align_format.lib 390004 2013-02-22 15:37:43Z rafanovi $
+
+ASN_DEP = xnetblast blastdb scoremat taxon1
+DLL_LIB = blast_services gene_info seqdb $(OBJREAD_LIBS) xalnmgr xobjutil \
+          blastdb xnetblastcli xnetblast scoremat xhtml xcgi tables \
+          $(OBJMGR_LIBS)
+
+###  BASIC PROJECT SETTINGS
+LIB = align_format
+SRC = format_flags align_format_util showdefline showalign tabular vectorscreen seqalignfilter \
+      aln_printer
+# OBJ =
+
+CPPFLAGS = $(ORIG_CPPFLAGS)
+
+###  EXAMPLES OF OTHER SETTINGS THAT MIGHT BE OF INTEREST
+# CFLAGS   = $(FAST_CFLAGS)
+# CXXFLAGS = $(FAST_CXXFLAGS)
+#
+# LIB_OR_DLL = dll
+
+WATCHERS = zaretska jianye madden camacho

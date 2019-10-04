@@ -1,0 +1,14 @@
+# $Id: Makefile.blast_services.lib 208341 2010-10-15 18:36:58Z serovav $
+
+WATCHERS = madden camacho maning
+
+ASN_DEP = seq seqset blastdb xnetblast
+
+SRC = blast_services
+
+LIB = blast_services
+
+CFLAGS   = $(FAST_CFLAGS)
+CXXFLAGS = $(FAST_CXXFLAGS)
+LDFLAGS  = $(FAST_LDFLAGS)
+

@@ -1,0 +1,56 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 343938 2011-11-10 16:19:43Z satskyse $
+#
+# Author: Alexey Rafanovich
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+
+APP: protein_clustering_app
+
+
+DEFAULT_CONFIGURATIONS: Linux64-Centos:plain-GCC
+#Linux32-Centos:plain-ICC  Linux64-Centos:plain-ICC  SunOSx86:plain-WS64 SunOSSparc:plain-WS64
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+
+#Linux32-Centos    : plain-ICC  : ICC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+#Linux32-Centos    : plain-GCC  : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+
+#Linux64-Centos    : plain-ICC  : ICC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+Linux64-Centos    : plain-GCC  : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+
+#FreeBSD32  : plain      : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+
+#SunOSx86   : plain-GCC  : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+#SunOSx86   : plain-WS32 : WorkShop59.sh 32 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+#SunOSx86   : plain-WS64 : WorkShop59.sh 64 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+
+#SunOSSparc : plain-GCC  : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+#SunOSSparc : plain-WS32 : WorkShop59.sh 32 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+#SunOSSparc : plain-WS64 : WorkShop59.sh 64 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+
+#Linux64-Centos    : plain-GCC  : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+#Linux32-Ubuntu    : plain-GCC  : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-internal
+
+# --with-flat-makefile is ommited for IntelMAC with the test purposes. Should
+# work similar to the configurations where it is mentioned explicitly
+#IntelMAC   : GCC        : GCC.sh           --with-universal --without-debug --without-mt --with-static --without-runpath --with-internal
+
+#Win32      : 800-static-32 : msvc800_prj  static  32  ReleaseDLL
+#Win64      : 800-static-64 : msvc800_prj  static  64  ReleaseDLL
+#Win32_9    : 900-static-32 : msvc900_prj  static  32  ReleaseDLL
+#Win64_9    : 900-static-64 : msvc900_prj  static  64  ReleaseDLL
+
+#XCode      : plain      : Xcode.sh 30
+

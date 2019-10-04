@@ -1,0 +1,51 @@
+#
+# Filename: Manifest
+#
+# $Id: Manifest 343938 2011-11-10 16:19:43Z satskyse $
+#
+# Author: Sergey Satskiy
+#
+# Purpose: This file holds all the supported configurations of a package
+#          It is used by release configurator.
+#
+
+#
+# ATTENTION: It is supposed that the only one configuration per platform
+#            exists. The configuration must be for GCC compiler. If this rule
+#            is not obeyed this may lead to malformed plugin libraries.
+#
+
+
+
+# Each line describes a single configuration
+# The format is as follows:
+# <HardwareIdentifier> : <ReleaseSuffix> : <CompilerConfigurationScriptWithKeys>
+# Configuration script is relative to c++/compilers/unix/ .
+# Release configurator assumes that this script will eventually call standard configure script and pass all options
+# to it. So some standard options may be added by release configurator, such as --build-root-sfx, --with-projects,
+# --with-distcc, --with-action etc.
+
+POSTBUILD: $srcdir/scripts/internal/projects/ToolkitWrappers/post_build/build_wrappers.py -v -c $version $platform $srcdir $libdir $installdir
+
+DEFAULT_CONFIGURATIONS: Linux64-Centos:gcc
+
+USE_COMPONENTS
+
+#Linux64-Centos  : gcc : GCC.sh  --without-debug --without-optimization --without-ncbi-c --with-internal --with-mt --with-flat-makefile <ENV>NCBI_SWIG_LANG="python";CPPFLAGS=-DNCBI_TEMPSTR_USE_A_COPY</ENV>
+Linux64-Centos  : gcc : GCC.sh  4.4.2 --without-debug --without-ncbi-c --with-internal --with-mt --with-flat-makefile <ENV>NCBI_SWIG_LANG="python";CPPFLAGS=-DNCBI_TEMPSTR_USE_A_COPY</ENV>
+
+#FreeBSD32  : plain     : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile
+
+#SunOSx86   : plain     : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile
+#SunOSx86   : plain     : WorkShop55.sh 32 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile
+#SunOSx86   : plain     : WorkShop59.sh 64 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile
+
+#SunOSSparc : plain     : WorkShop55.sh 64 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile
+#SunOSSparc : plain     : WorkShop55.sh 32 --without-debug --without-mt --with-static --without-runpath --with-flat-makefile
+#SunOSSparc : plain     : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile
+
+#PowerMAC   : universal : GCC.sh           --without-debug --without-mt --with-static --without-runpath --with-flat-makefile --with-universal
+
+#Win32      : plain32   : msvc800_prj  static  32  ReleaseDLL
+#Win64      : plain64   : msvc800_prj  static  64  ReleaseDLL
+

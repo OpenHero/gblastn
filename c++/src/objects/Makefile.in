@@ -1,0 +1,19 @@
+# $Id: Makefile.in 391319 2013-03-06 22:38:49Z camacho $
+
+# Meta-makefile("objects" project)
+#################################
+
+USR_PROJ = sources
+
+SUB_PROJ = general biblio medline pub seqcode seq seqset submit \
+           seqedit seqsplit id1 id2 entrez2 pubmed medlars mla proj \
+           scoremat blast blastdb blastxml mmdb cn3d cdd ncbimime \
+           pcsubstance pcassay gbseq insdseq tinyseq biotree entrezgene \
+           omssa remap seqtest taxon1 taxon3 trackmgr valerr valid \
+           access docsum featdef genomecoll homologene mim objprt \
+           variation macro
+
+REQUIRES = objects
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta

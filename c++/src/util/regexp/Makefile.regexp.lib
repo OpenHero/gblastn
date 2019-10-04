@@ -1,0 +1,12 @@
+# $Id: Makefile.regexp.lib 184358 2010-02-26 16:33:57Z ivanov $
+
+SRC = pcre_chartables pcre_compile pcre_config pcre_dfa_exec pcre_exec pcre_fullinfo pcre_get \
+      pcre_globals pcre_info pcre_maketables pcre_newline pcre_ord2utf8 pcre_refcount pcre_study \
+      pcre_tables pcre_try_flipped pcre_ucd pcre_valid_utf8 pcre_version pcre_xclass \
+      pcreposix
+
+LIB = regexp
+
+CPPFLAGS = -I$(includedir)/util/regexp -DHAVE_CONFIG_H $(ORIG_CPPFLAGS)
+
+WATCHERS = ivanov
