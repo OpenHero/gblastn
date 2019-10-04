@@ -38,21 +38,21 @@ and copy the libgpublast.a to build directory.
 ## News v1.1: 
  1.1 [November 2013] version release is built on NCBI-BLAST 2.2.28.
 
-I. Supported features
+### I. Supported features
 =====================
 G-BLASTN accelerates the blastn module of NCBI-BLAST by GPUs. G-BLASTN has been tested on 
 NVIDIA GPUs Tesla C2050， GTX680, GTX780, and Quadro K5000. 
 
-Requirement:
+### Requirement:
 ============
 1). Nvidia GPU card with compute capability > 1.3 <br \>
 2). CUDA5.5 version. https://developer.nvidia.com/cuda-toolkit
 
-II. Installation instructions
+### II. Installation instructions
 =============================
 
 https://github.com/OpenHero/gblastn/wiki/Install-guide
 
-III. How to use G-BLASTN
+### III. How to use G-BLASTN
 ========================
 https://github.com/OpenHero/gblastn/wiki/User-guide
