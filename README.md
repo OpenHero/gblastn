@@ -21,7 +21,21 @@ Acknowledgement:
 
 This project is supported by grant FRG2/11-12/158 from Hong Kong Baptist University. We also thank NVIDIA corporation for their donation of GPU cards.
 
-News: 
+## News v1.2: 
+1.2 [October 2019] version release is built on NCBI-BLAST 2.2.28.
+
+Merge with ncbi-blast-2.2.28+.src support CUDA 10.1 Ubuntu 18.x GCC 7.x
+
+### build
+Build gpu part first.
+in c++/src/algo/blast/gpu_blast
+make -f makefile
+and copy the libgpublast.a to build directory.
+
+
+
+
+## News v1.1: 
  1.1 [November 2013] version release is built on NCBI-BLAST 2.2.28.
 
 I. Supported features
