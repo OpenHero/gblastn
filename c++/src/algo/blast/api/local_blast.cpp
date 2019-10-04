@@ -44,6 +44,11 @@ static char const rcsid[] =
 #include <algo/blast/api/seqinfosrc_seqdb.hpp>
 #include <algo/blast/api/blast_dbindex.hpp>
 
+//////////////////////////////////////////////////////////////////////////
+// added by kyzhao for gpu blastn 
+#include <algo/blast/gpu_blast/gpu_logfile.h>
+//////////////////////////////////////////////////////////////////////////
+
 /** @addtogroup AlgoBlast
  *
  * @{
@@ -177,7 +182,16 @@ CLocalBlast::Run()
     int status = m_PrelimSearch->CheckInternalData();
     try {
         m_PrelimSearch->SetNumberOfThreads(GetNumberOfThreads());
+		//////////////////////////////////////////////////////////////////////////
+		//added by kyzhao for gpu blastn 
+		__int64 c1 = slogfile.NewStart(true);
         m_InternalData = m_PrelimSearch->Run();
+		__int64 c2 = slogfile.NewEnd(true);
+		double total_time = slogfile.elaplsedTime(c1, c2);
+		cout << total_time <<"\t";
+		slogfile.addTotalTime("Total PrelimSearch Time", c1, c2, false);
+		//////////////////////////////////////////////////////////////////////////
+
     } catch( CIndexedDbException & e ) { 
         throw;
     } catch (...) {
@@ -246,7 +260,16 @@ CLocalBlast::Run()
     if (m_LocalDbAdapter.NotEmpty() && !m_LocalDbAdapter->IsBlastDb()) {
         m_TbackSearch->SetResultType(eSequenceComparison);
     }
+	//////////////////////////////////////////////////////////////////////////
+	// added by kyzhao for gpu blastn trackback search
+	__int64 c1 = slogfile.NewStart(true);
     CRef<CSearchResultSet> retval = m_TbackSearch->Run();
+	__int64 c2 = slogfile.NewEnd(true);
+	double total_time = slogfile.elaplsedTime(c1, c2);
+	cout << total_time <<"\t";
+	slogfile.addTotalTime("Total Traceback Time", c1, c2, false);
+	//////////////////////////////////////////////////////////////////////////
+	
     retval->SetFilteredQueryRegions(m_PrelimSearch->GetFilteredQueryRegions());
     m_Messages = m_TbackSearch->GetSearchMessages();
 
@@ -264,6 +287,125 @@ Int4 CLocalBlast::GetNumExtensions()
     }
     return retv;
 }
+
+//////////////////////////////////////////////////////////////////////////
+// add two parts PrelimSearchRun and TraceBackRun by kyzhao 2013.8.7
+int  CLocalBlast::PrelimSearchRun(CRef<CSearchResultSet> retval)
+{
+	_ASSERT(m_QueryFactory);
+	_ASSERT(m_PrelimSearch);
+	_ASSERT(m_Opts);
+
+	// Note: we need to pass the search messages ...
+	// filtered query regions should be masked in the BLAST_SequenceBlk
+	// already.
+
+	int status = m_PrelimSearch->CheckInternalData();
+	try {
+		m_PrelimSearch->SetNumberOfThreads(GetNumberOfThreads());
+		//////////////////////////////////////////////////////////////////////////
+		//added by kyzhao for gpu blastn 
+		__int64 c1 = slogfile.Start();
+
+		m_InternalData = m_PrelimSearch->Run();
+
+		__int64 c2 = slogfile.End();
+		slogfile.addTotalTime("Total PrelimSearch Time", c1, c2, false);
+		//////////////////////////////////////////////////////////////////////////
+
+
+	} catch (...) {
+	}
+	if (status != 0)
+	{
+		// Search was not run, but we send back an empty CSearchResultSet.
+		CRef<ILocalQueryData> local_query_data = m_QueryFactory->MakeLocalQueryData(m_Opts);
+		// TSeqLocVector slv = m_QueryFactory.GetTSeqLocVector();
+		vector< CConstRef<objects::CSeq_id> > seqid_vec;
+		vector< CRef<CBlastAncillaryData> > ancill_vec;
+		TSeqAlignVector sa_vec;
+		size_t index;
+		for (index=0; index<local_query_data->GetNumQueries(); index++)
+		{
+			CConstRef<objects::CSeq_id> query_id(local_query_data->GetSeq_loc(index)->GetId());
+			seqid_vec.push_back(query_id);
+			CRef<objects::CSeq_align_set> tmp_align;
+			sa_vec.push_back(tmp_align);
+			pair<double, double> tmp_pair(-1.0, -1.0);
+			CRef<CBlastAncillaryData>  tmp_ancillary_data(new CBlastAncillaryData(tmp_pair, tmp_pair, tmp_pair, 0));
+			ancill_vec.push_back(tmp_ancillary_data);
+		}
+		TSearchMessages msg_vec;
+		local_query_data->GetMessages(msg_vec);
+		EResultType res_type = eDatabaseSearch;
+		if (m_LocalDbAdapter.NotEmpty() && !m_LocalDbAdapter->IsBlastDb()) {
+			res_type = eSequenceComparison;
+		}
+		//CRef<CSearchResultSet> result_set(new CSearchResultSet(seqid_vec,
+		//	sa_vec,
+		//	msg_vec,
+		//	ancill_vec, 0,
+		//	res_type));
+
+		retval.Reset(new CSearchResultSet(seqid_vec,
+			sa_vec,
+			msg_vec,
+			ancill_vec, 0,
+			res_type));
+
+		return status;
+	}
+
+	//_ASSERT(m_InternalData);
+
+	m_Messages = m_PrelimSearch->GetSearchMessages();
+
+	//CRef<IBlastSeqInfoSrc> seqinfo_src;
+
+	if (m_SeqInfoSrc.NotEmpty())
+	{
+		// Use the SeqInfoSrc provided by the user during construction
+		m_SeqInfoSrc = m_SeqInfoSrc;
+	}
+	else if (m_LocalDbAdapter.NotEmpty()) {
+		// This path is preferred because it preserves the GI list
+		// limitation if there is one.  DBs with both internal OID
+		// filtering and user GI list filtering will not do complete
+		// filtering during the traceback stage, which can cause
+		// 'Unknown defline' errors during formatting.
+
+		m_SeqInfoSrc.Reset(m_LocalDbAdapter->MakeSeqInfoSrc());
+	} else {
+		m_SeqInfoSrc.Reset(s_InitSeqInfoSrc(m_InternalData->m_SeqSrc->GetPointer()));
+	}
+
+	return status;
+}
+CRef<CSearchResultSet> CLocalBlast::TraceBackRun()
+{
+	m_TbackSearch.Reset(new CBlastTracebackSearch(m_QueryFactory,
+		m_InternalData,
+		m_Opts,
+		m_SeqInfoSrc,
+		m_Messages));
+	if (m_LocalDbAdapter.NotEmpty() && !m_LocalDbAdapter->IsBlastDb()) {
+		m_TbackSearch->SetResultType(eSequenceComparison);
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// added by kyzhao for gpu blastn trackback search
+	__int64 c1 = slogfile.Start();
+	CRef<CSearchResultSet> retval = m_TbackSearch->Run();
+	__int64 c2 = slogfile.End();
+	slogfile.addTotalTime("Total Traceback Time", c1, c2, false);
+	//////////////////////////////////////////////////////////////////////////
+
+
+	retval->SetFilteredQueryRegions(m_PrelimSearch->GetFilteredQueryRegions());
+	m_Messages = m_TbackSearch->GetSearchMessages();
+	return retval;
+}
+//////////////////////////////////////////////////////////////////////////
 
 END_SCOPE(blast)
 END_NCBI_SCOPE

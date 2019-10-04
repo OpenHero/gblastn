@@ -44,6 +44,10 @@
 #include <algo/blast/api/setup_factory.hpp>
 #include "blast_memento_priv.hpp"
 
+//////////////////////////////////////////////////////////////////////////
+// gpu by kyzhao
+#include <algo/blast/gpu_blast/gpu_blastn.h>
+
 // CORE BLAST includes
 #include <algo/blast/core/blast_engine.h>
 
@@ -68,7 +72,8 @@ public:
         _ASSERT(m_InternalData.m_LookupTable);
         _ASSERT(m_InternalData.m_HspStream);
         SBlastProgressReset(m_InternalData.m_ProgressMonitor->Get());
-        Int2 retval = Blast_RunPreliminarySearchWithInterrupt(m_OptsMemento->m_ProgramType,
+#if 0
+		Int2 retval = Blast_RunPreliminarySearchWithInterrupt(m_OptsMemento->m_ProgramType,
                                  m_InternalData.m_Queries,
                                  m_InternalData.m_QueryInfo,
                                  m_InternalData.m_SeqSrc->GetPointer(),
@@ -85,6 +90,28 @@ public:
                                  m_InternalData.m_Diagnostics->GetPointer(),
                                  m_InternalData.m_FnInterrupt,
                                  m_InternalData.m_ProgressMonitor->Get());
+#else
+		//////////////////////////////////////////////////////////////////////////
+		// change to gpu blastn version by kyzhao	
+		Int2 retval = Blast_gpu_RunPreliminarySearchWithInterrupt(m_OptsMemento->m_ProgramType,
+			m_InternalData.m_Queries,
+			m_InternalData.m_QueryInfo,
+			m_InternalData.m_SeqSrc->GetPointer(),
+			m_OptsMemento->m_ScoringOpts,
+			m_InternalData.m_ScoreBlk->GetPointer(),
+			m_InternalData.m_LookupTable->GetPointer(),
+			m_OptsMemento->m_InitWordOpts,
+			m_OptsMemento->m_ExtnOpts,
+			m_OptsMemento->m_HitSaveOpts,
+			m_OptsMemento->m_EffLenOpts,
+			m_OptsMemento->m_PSIBlastOpts,
+			m_OptsMemento->m_DbOpts,
+			m_OptsMemento->m_GpuOpts,
+			m_InternalData.m_HspStream->GetPointer(),
+			m_InternalData.m_Diagnostics->GetPointer(),
+			m_InternalData.m_FnInterrupt,
+			m_InternalData.m_ProgressMonitor->Get());
+#endif
 
         return static_cast<int>(retval);
     }

@@ -218,6 +218,8 @@ void CDataTool::Init(void)
                "combine all -or* prefixes");
     d->AddFlag("ocvs",
                "create \".cvsignore\" files");
+    d->AddFlag("ogit",
+               "create \".gitignore\" files");
     d->AddOptionalKey("oR", "rootDirectory",
                       "set \"-o*\" arguments for NCBI directory tree",
                       CArgDescriptions::eString);
@@ -631,6 +633,8 @@ bool CDataTool::GenerateCode(void)
         generator.UseQuotedForm(true);
     if ( generator.GetOpt("ocvs") )
         generator.CreateCvsignore(true);
+    //if ( generator.GetOpt("ogit") )
+        generator.CreateGitignore(true);
     if ( generator.GetOpt("ors") )
         generator.SetFileNamePrefixSource(eFileName_FromSourceFileName);
     if ( generator.GetOpt("orm") )

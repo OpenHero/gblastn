@@ -489,6 +489,30 @@ typedef struct BlastDatabaseOptions {
                              tblast[nx] only */
 } BlastDatabaseOptions;
 
+///////////////////////////////////////////////////////////////////////
+//added by kyzhao for GPU blastn
+
+/* *********** START ************* */
+
+/** Options used by GPU BLAST */
+typedef struct BlastGPUOptions {
+
+	const char*	query_list;
+	Boolean use_gpu;
+	int		gpu_id;
+	int		prepare_num;
+	int		prelim_num;
+	int		trace_num;
+	int		print_num;
+
+} BlastGPUOptions;
+
+/** GPU BLAST options */
+NCBI_XBLAST_EXPORT
+	BlastGPUOptions* BlastGPUOptionsFree(BlastGPUOptions* gpu_options);
+/* ********** FINISH ************* */
+
+
 /********************************************************************************
 
     Functions to create options blocks with default values

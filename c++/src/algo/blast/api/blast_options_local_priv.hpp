@@ -302,6 +302,31 @@ public:
     bool GetMBIndexLoaded() const;
     void SetMBIndexLoaded( bool index_loaded = true );
 
+	//////////////////////////////////////////////////////////////////////////
+	// added by kyzhao for GPU blastn
+	/******************** GPU options *******************/
+	int GetMethod() const;
+	string GetQueryList() const;
+	bool GetUseGpu() const;
+	int GetGpuID() const;
+	int GetPrepareNum() const;
+	int GetPrelimNum() const;
+	int GetTraceNum() const;
+	int GetPrintNum() const;
+	bool GetConverted() const;
+
+	void SetMethod(int method);
+	void SetQueryList(string query_list);
+	void SetUseGpu( bool use_gpu );
+	void SetGpuID(int gpu_id);
+	void SetPrepareNum(int prepare_num);
+	void SetPrelimNum(int prelim_num);
+	void SetTraceNum(int trace_num);
+	void SetPrintNum(int print_num);
+	void SetConverted(bool is_converted_db);
+
+	/* ********** FINISH ************* */
+
     bool operator==(const CBlastOptionsLocal& rhs) const;
     bool operator!=(const CBlastOptionsLocal& rhs) const;
 
@@ -350,6 +375,24 @@ private:
 
     /// Megablast database index name.
     string m_MBIndexName;
+
+	//////////////////////////////////////////////////////////////////////////
+	//added by kyzhao for GPU blastn
+
+	/* *********** START ************* */
+
+	/// GPU options
+	int m_method;
+	string m_QueryList;
+	bool m_UseGpu;
+	int m_GpuId;
+	int m_PrepareNum;
+	int m_PrelimNum;
+	int m_TraceNum;
+	int m_PrintNum;
+	bool m_Converted;
+
+	/* ********** FINISH ************* */
 
     friend class CBlastOptions;
 
@@ -1566,6 +1609,105 @@ inline void CBlastOptionsLocal::SetUseIndex(
         m_OldStyleMBIndex = old_style_index;
     }
 }
+
+//////////////////////////////////////////////////////////////////////////
+//added by kyzhao for GPU blastn
+/* *********** START ************* */
+
+/******************** GPU Options *******************/
+inline int CBlastOptionsLocal::GetMethod() const
+{
+	return m_method;
+}
+
+inline string CBlastOptionsLocal::GetQueryList() const
+{
+	return m_QueryList;
+}					  
+
+inline bool CBlastOptionsLocal::GetUseGpu() const
+{
+	return m_UseGpu;
+}
+
+inline int CBlastOptionsLocal::GetGpuID() const
+{
+	return m_GpuId;
+}
+
+inline int CBlastOptionsLocal::GetPrepareNum() const
+{
+	return m_PrepareNum;
+}
+
+inline int CBlastOptionsLocal::GetPrelimNum() const
+{
+	return m_PrelimNum;
+}
+
+inline int CBlastOptionsLocal::GetTraceNum() const
+{
+	return m_TraceNum;
+}
+
+inline int CBlastOptionsLocal::GetPrintNum() const
+{
+	return m_PrintNum;
+}
+
+inline bool CBlastOptionsLocal::GetConverted() const
+{
+	return m_Converted;
+}
+
+inline void CBlastOptionsLocal::SetMethod(int method)
+{
+	m_method = method;
+}
+
+
+inline void CBlastOptionsLocal::SetQueryList(string query_list)
+{
+	m_QueryList = query_list;
+}
+
+inline void CBlastOptionsLocal::SetUseGpu( bool use_gpu )
+{
+	m_UseGpu = use_gpu;
+}
+
+inline void CBlastOptionsLocal::SetGpuID( int gpu_id )
+{
+	m_GpuId = gpu_id;
+}
+
+inline void CBlastOptionsLocal::SetPrepareNum( int prepare_num )
+{
+	m_PrepareNum = prepare_num;
+}
+
+inline void CBlastOptionsLocal::SetPrelimNum( int prelim_num )
+{
+	m_PrelimNum = prelim_num;
+}
+
+inline void CBlastOptionsLocal::SetTraceNum( int trace_num )
+{
+	m_TraceNum = trace_num;
+}
+
+inline void CBlastOptionsLocal::SetPrintNum( int print_num )
+{
+	m_PrintNum = print_num;
+}
+
+inline void CBlastOptionsLocal::SetConverted( bool is_converted_db)
+{
+	m_Converted = is_converted_db;
+}
+/* ********** FINISH ************* */
+
+
 
 #endif /* SKIP_DOXYGEN_PROCESSING */
 

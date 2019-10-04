@@ -118,12 +118,21 @@ public:
     CNcbiIstream& GetInputStream() const;
     /** Get the output stream for a command line application */
     CNcbiOstream& GetOutputStream() const;
+
+    ///// CHANGED by kyzhao /////
+    /** Get the input and output stream for a command line application */
+    CNcbiIostream& GetIOStream() const;
+    ///// CHANGED /////
+
     /** Set the input stream if read from a saved search strategy */
     void SetInputStream(CRef<CTmpFile> input_file);
 
 private:
     CNcbiIstream* m_InputStream;    ///< Application's input stream
+   ///// CHANGED by kyzhao/////
     CNcbiOstream* m_OutputStream;   ///< Application's output stream
+    CNcbiIostream* m_IOStream;   ///< Application's input/output stream
+    ///// CHANGED /////
 
     /// ASN.1 specification of query sequences when read from a saved search
     /// strategy
@@ -1047,6 +1056,26 @@ public:
     static bool HasBeenSet(const CArgs& args);
 };
 
+//////////////////////////////////////////////////////////////////////////
+//added by kyzhao for GPU blastn
+
+/* *********** START ************* */
+
+/// Argument class to retrieve GPU options                                                               
+class NCBI_BLASTINPUT_EXPORT CGpuArgs : public IBlastCmdLineArgs
+{
+public:
+	/** Interface method, \sa IBlastCmdLineArgs::SetArgumentDescriptions */
+	virtual void SetArgumentDescriptions(CArgDescriptions& arg_desc);
+	/** Interface method, \sa IBlastCmdLineArgs::SetArgumentDescriptions */
+	virtual void ExtractAlgorithmOptions(const CArgs& args,
+		CBlastOptions& opts);
+
+};
+
+/* ********** FINISH ************* */
+
+
 /// Type definition of a container of IBlastCmdLineArgs
 typedef vector< CRef<IBlastCmdLineArgs> > TBlastCmdLineArgs;
 
@@ -1119,6 +1148,12 @@ public:
     CNcbiOstream& GetOutputStream() const {
         return m_StdCmdLineArgs->GetOutputStream();
     }
+
+///// CHANGED by kyzhao/////
+    CNcbiIostream& GetInputOutputStream() const {
+        return m_StdCmdLineArgs->GetIOStream();
+    }
+///// CHANGED /////
 
     /// Set the input stream to a temporary input file (needed when importing
     /// a search strategy)
@@ -1193,6 +1228,13 @@ protected:
     string m_ClientId;
     /// Is this application being run ungapped
     bool m_IsUngapped;
+
+	//////////////////////////////////////////////////////////////////////////
+	//added by kyzhao for GPU blastn
+	/* *********** START ************* */
+	/// GPU options                                                                                      
+	CRef<CGpuArgs> m_GpuArgs;
+	/* ********** FINISH ************* */ 
 
     /// Create the options handle based on the command line arguments
     /// @param locality whether the search will be executed locally or remotely

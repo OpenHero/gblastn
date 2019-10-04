@@ -440,6 +440,34 @@ public:
     /// If this is true, remote options will ignore "Set" calls.
     void SetDefaultsMode(bool dmode);
     bool GetDefaultsMode() const;
+
+
+	//////////////////////////////////////////////////////////////////////////
+	//added by kyzhao for GPU blastn
+	/* *********** START ************* */
+
+	/******************** GPU Options *******************/
+	int GetMethod() const;
+	string GetQueryList() const;
+	bool GetUseGpu() const;
+	int GetGpuID() const;
+	int GetPrepareNum() const;
+	int GetPrelimNum() const;
+	int GetTraceNum() const;
+	int GetPrintNum() const;
+	bool GetConverted() const;
+
+	void SetMethod(int method);
+	void SetQueryList(string query_list);
+	void SetUseGpu( bool use_gpu );
+	void SetGpuID(int gpu_id);
+	void SetPrepareNum(int prepare_num);
+	void SetPrelimNum(int prelim_num);
+	void SetTraceNum(int trace_num);
+	void SetPrintNum(int print_num);
+	void SetConverted(bool is_converted_db);
+
+	/* ********** FINISH ************* */
     
 private:
     /// Prohibit copy c-tor 

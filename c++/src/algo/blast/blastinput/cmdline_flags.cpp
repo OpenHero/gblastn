@@ -210,6 +210,37 @@ const string kArgShowDomainHits("show_domain_hits");
 const string kArgRid("rid");
 const string kArgArchive("archive");
 
+//////////////////////////////////////////////////////////////////////////
+// added by kyzhao for GPU blastn
+
+/* *********** START ************* */
+const string kArgMethod("mode");
+const string kDfltArgMethod("1");
+
+const string kArgQueryList("query_list");
+const string kDfltArgQueryList("");
+
+const string kArgUseGpu("use_gpu");
+const string kDfltArgUseGpu("false");
+const string kArgGpuID("gpu_id");
+const string kDfltArgGpuID("-1");
+
+const string kArgPrepareThread("pre_t_num");
+const string kDfltArgPrepareThread("1");
+
+const string kArgPrelimThread("prelim_t_num");
+const string kDfltArgPrelimThread("1");
+
+const string kArgTraceThread("trace_t_num");
+const string kDfltArgTraceThread("1");
+
+const string kArgPrintThread("print_t_num");
+const string kDfltArgPrintThread("1");
+
+const string kArgConverted("converted");
+const string kDfltArgConverted("false");
+/* ********** FINISH ************* */
+
 END_SCOPE(blast)
 END_NCBI_SCOPE
 

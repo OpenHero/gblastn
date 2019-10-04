@@ -121,6 +121,16 @@ CBlastnAppArgs::CBlastnAppArgs()
     m_DebugArgs.Reset(new CDebugArgs);
     arg.Reset(m_DebugArgs);
     m_Args.push_back(arg);
+
+	//////////////////////////////////////////////////////////////////////////
+	//added by kyzhao for GPU blastn
+	/* *********** START ************* */
+
+	m_GpuArgs.Reset(new CGpuArgs);
+	arg.Reset(m_GpuArgs);
+	m_Args.push_back(arg);
+
+	/* ********** FINISH ************* */
 }
 
 CRef<CBlastOptionsHandle> 

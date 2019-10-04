@@ -75,6 +75,13 @@ private:
         m_EffLenOpts    = local_opts->m_EffLenOpts.Get();
     }
 
+	//////////////////////////////////////////////////////////////////////////
+	//added by kyzhao for GPU blastn
+	/* *********** START ************* */
+	BlastGPUOptions* m_GpuOpts;     
+    
+	/* ********** FINISH ************* */
+
     // The originator
     friend class CBlastOptions;
 

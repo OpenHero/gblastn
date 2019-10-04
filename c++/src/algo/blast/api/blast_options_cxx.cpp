@@ -2412,6 +2412,186 @@ void CBlastOptions::x_DoDeepCopy(const CBlastOptions& opts)
     }
 }
 
+//////////////////////////////////////////////////////////////////////////
+//added by kyzhao for GPU blastn
+/* *********** START ************* */
+
+int CBlastOptions::GetMethod() const
+{
+	if (! m_Local) {
+		x_Throwx("Error: GetMethod() not available.");
+	}
+
+	return m_Local->GetMethod();
+} 
+
+string CBlastOptions::GetQueryList() const
+{
+	if (! m_Local) {
+		x_Throwx("Error: GetQueryList() not available.");
+	}
+
+	return m_Local->GetQueryList();
+} 
+
+bool CBlastOptions::GetUseGpu() const
+{
+	if (! m_Local) {
+		x_Throwx("Error: GetUseGPU() not available.");
+	}
+
+	return m_Local->GetUseGpu();
+}
+
+int CBlastOptions::GetGpuID() const
+{
+	if (! m_Local) {
+		x_Throwx("Error: GetGpuID() not available.");
+	}
+
+	return m_Local->GetGpuID();
+}
+
+int CBlastOptions::GetPrepareNum() const
+{
+	if (! m_Local) {
+		x_Throwx("Error: GetPrepareNum() not available.");
+	}
+
+	return m_Local->GetPrepareNum();
+}
+
+int CBlastOptions::GetPrelimNum() const
+{
+	if (! m_Local) {
+		x_Throwx("Error: GetPrelimNum() not available.");
+	}
+
+	return m_Local->GetPrelimNum();
+}
+
+
+int CBlastOptions::GetTraceNum() const
+{
+	if (! m_Local) {
+		x_Throwx("Error: GetTraceNum() not available.");
+	}
+
+	return m_Local->GetTraceNum();
+}
+
+int CBlastOptions::GetPrintNum() const
+{
+	if (! m_Local) {
+		x_Throwx("Error: GetPrintNum() not available.");
+	}
+
+	return m_Local->GetPrintNum();
+}
+
+bool CBlastOptions::GetConverted() const
+{
+	if (! m_Local)
+	{
+		x_Throwx("Error: GetConverted() not available.");
+	}
+	return m_Local->GetConverted();
+}
+
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+void CBlastOptions::SetMethod(int method)
+{
+	if (m_Local) {
+		m_Local->SetMethod( method );
+	}
+	if (m_Remote) {
+		//                                                                                              
+	}
+}
+void CBlastOptions::SetQueryList(string query_list)
+{
+	if (m_Local) {
+		m_Local->SetQueryList( query_list );
+	}
+	if (m_Remote) {
+		//                                                                                              
+	}
+}
+
+
+void CBlastOptions::SetUseGpu( bool use_gpu )
+{
+	if (m_Local) {
+		m_Local->SetUseGpu( use_gpu );
+	}
+	if (m_Remote) {
+		//                                                                                              
+	}
+}
+
+void CBlastOptions::SetConverted(bool is_converted_db)
+{
+	if (m_Local)
+	{
+		m_Local->SetConverted(is_converted_db);
+	}
+	if (m_Remote)
+	{
+	}
+}
+
+void CBlastOptions::SetGpuID( int gpu_id )
+{
+	if (m_Local) {
+		m_Local->SetGpuID( gpu_id );
+	}
+	if (m_Remote) {
+		//                                                                                              
+	}
+}
+
+void CBlastOptions::SetPrepareNum( int prepare_num )
+{
+	if (m_Local) {
+		m_Local->SetPrepareNum( prepare_num );
+	}
+	if (m_Remote) {
+		//                                                                                              
+	}
+}
+
+void CBlastOptions::SetPrelimNum( int prelim_num )
+{
+	if (m_Local) {
+		m_Local->SetPrelimNum( prelim_num );
+	}
+	if (m_Remote) {
+		//                                                                                              
+	}
+}
+
+void CBlastOptions::SetTraceNum( int trace_num )
+{
+	if (m_Local) {
+		m_Local->SetTraceNum( trace_num );
+	}
+	if (m_Remote) {
+		//                                                                                              
+	}
+}
+
+void CBlastOptions::SetPrintNum( int print_num )
+{
+	if (m_Local) {
+		m_Local->SetPrintNum( print_num );
+	}
+	if (m_Remote) {
+		//                                                                                              
+	}
+}
+/* ********** FINISH ************* */
+
 #endif /* SKIP_DOXYGEN_PROCESSING */
 
 END_SCOPE(blast)

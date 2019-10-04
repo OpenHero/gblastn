@@ -132,6 +132,10 @@ public:
         list<string>& allHpp, list<string>& allCpp);
     void GenerateCvsignore(const string& outdir_cpp, const string& outdir_hpp,
         const list<string>& generated, map<string, pair<string,string> >& module_names);
+    // add by kyzhao for git
+    void GenerateGitignore(const string& outdir_cpp, const string& outdir_hpp,
+        const list<string>& generated, map<string, pair<string,string> >& module_names);
+    
     void GenerateModuleHPP(const string& path, list<string>& generated) const;
     void GenerateModuleCPP(const string& path, list<string>& generated) const;
 
@@ -145,6 +149,8 @@ public:
     string GetFileNamePrefix(void) const;
     void UseQuotedForm(bool use);
     void CreateCvsignore(bool create);
+    // add by kyzhao for git
+    void CreateGitignore(bool create);
     void SetFileNamePrefix(const string& prefix);
     EFileNamePrefixSource GetFileNamePrefixSource(void) const;
     void SetFileNamePrefixSource(EFileNamePrefixSource source);
@@ -207,6 +213,7 @@ private:
     CNamespace m_DefaultNamespace;
     bool m_UseQuotedForm;
     bool m_CreateCvsignore;
+    bool m_CreateGitignore; // add by kyzhao for git 2019.10.5
     string m_DoxygenIngroup;
     string m_DoxygenGroupDescription;
     string m_DefFile;

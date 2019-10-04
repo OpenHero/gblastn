@@ -64,6 +64,7 @@ CCodeGenerator::CCodeGenerator(void)
     m_ImportFiles.SetModuleContainer(this); 
     m_UseQuotedForm = false;
     m_CreateCvsignore = false;
+    m_CreateGitignore = false;
 }
 
 CCodeGenerator::~CCodeGenerator(void)
@@ -88,6 +89,11 @@ void CCodeGenerator::UseQuotedForm(bool use)
 void CCodeGenerator::CreateCvsignore(bool create)
 {
     m_CreateCvsignore = create;
+}
+
+void CCodeGenerator::CreateGitignore(bool create)
+{
+    m_CreateGitignore = create;
 }
 
 void CCodeGenerator::SetFileNamePrefix(const string& prefix)
@@ -363,6 +369,7 @@ void CCodeGenerator::GenerateCode(void)
     GenerateFileList(listGenerated, listUntouched,
         allGeneratedHpp, allGeneratedCpp, allSkippedHpp, allSkippedCpp);
     GenerateCvsignore(outdir_cpp, outdir_hpp, listGenerated, module_names);
+    GenerateGitignore(outdir_cpp, outdir_hpp, listGenerated, module_names);
     GenerateClientCode();
 }
 
@@ -654,6 +661,99 @@ void CCodeGenerator::GenerateCvsignore(
             }
 
 // .cvsignore.extra
+            if (different_dirs || is_cpp) {
+                string extraPath(Path(out_dir,extraName));
+                CNcbiIfstream extraFile(extraPath.c_str());
+                if (extraFile.is_open()) {
+                    char buf[256];
+                    while (extraFile.good()) {
+                        extraFile.getline(buf, sizeof(buf));
+                        CTempString sbuf(NStr::TruncateSpaces(CTempString(buf)));
+                        if (!sbuf.empty()) {
+                            ignoreFile << sbuf << endl;
+                        }
+                    }
+                }
+            }
+
+// base classes (always generated)
+            ITERATE ( TOutputFiles, filei, m_Files ) {
+                ignoreFile
+                    << BaseName(filei->second->GetFileBaseName())
+                    << "_." << (is_cpp ? "cpp" : "hpp") << endl;
+            }
+
+// user classes
+            for (list<string>::const_iterator it = generated.begin();
+                it != generated.end(); ++it) {
+                CDirEntry entry(*it);
+                if (is_cpp == (NStr::CompareNocase(entry.GetExt(),".cpp")==0)) {
+                    ignoreFile << entry.GetName() << endl;
+                }
+            }
+
+// combining files
+            if ( !m_CombiningFileName.empty() ) {
+                if (is_cpp) {
+                    ignoreFile << m_CombiningFileName << "__" << "_.cpp" << endl;
+                    ignoreFile << m_CombiningFileName << "__" << ".cpp" << endl;
+                } else {
+                    ignoreFile << m_CombiningFileName << "__" << ".hpp" << endl;
+                }
+            }
+
+// doxygen header
+            if ( !is_cpp  &&  CClassCode::GetDoxygenComments()
+                    &&  !module_names.empty() ) {
+                CDirEntry entry(GetMainModules().GetModuleSets().front()
+                                ->GetSourceFileName());
+                ignoreFile << entry.GetBase() << "_doxygen.h" << endl;
+            }
+
+// file list
+            if ( is_cpp && !m_FileListFileName.empty() ) {
+                CDirEntry entry(Path(m_FileNamePrefix,m_FileListFileName));
+                ignoreFile << entry.GetName() << endl;
+            }
+
+// specification dump (somewhat hackishly)
+            if ( const CArgValue& f
+                 = CNcbiApplication::Instance()->GetArgs()["fd"] ) {
+                ignoreFile << f.AsString() << endl;
+            }
+        }
+    }
+}
+
+// add by kyzhao for git 2019.10.4
+void CCodeGenerator::GenerateGitignore(
+    const string& outdir_cpp, const string& outdir_hpp,
+    const list<string>& generated, map<string, pair<string,string> >& module_names)
+{
+    if (!m_CreateGitignore) {
+        return;
+    }
+    string ignoreName(".gitignore");
+    string extraName(".gitignore.extra");
+
+    for (int i=0; i<2; ++i) {
+        bool is_cpp = (i==0);
+        bool different_dirs = (outdir_cpp != outdir_hpp);
+        string out_dir(is_cpp ? outdir_cpp : outdir_hpp);
+
+        string ignorePath(MakeAbsolutePath(Path(out_dir,ignoreName)));
+        // ios::out should be redundant, but some compilers
+        // (GCC 2.9x, for one) seem to need it. :-/
+        CNcbiOfstream ignoreFile(ignorePath.c_str(),
+            ios::out | ((different_dirs || is_cpp) ? ios::trunc : ios::app));
+
+        if (ignoreFile.is_open()) {
+
+            if (different_dirs || is_cpp) {
+                ignoreFile << ignoreName << endl;
+            }
+
+// .gitignore.extra
             if (different_dirs || is_cpp) {
                 string extraPath(Path(out_dir,extraName));
                 CNcbiIfstream extraFile(extraPath.c_str());

@@ -241,6 +241,9 @@ public:
     ///   SetupArgDescriptions().
     virtual const CArgs& GetArgs(void) const;
 
+	//added by kyzhao 2013.7.10
+	virtual CArgs& GetArgs(void);
+
     /// Get the application's cached environment.
     const CNcbiEnvironment& GetEnvironment(void) const;
 

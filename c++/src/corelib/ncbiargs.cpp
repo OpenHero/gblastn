@@ -705,7 +705,7 @@ void CArg_IOFile::x_Open(CArgValue::TFileFlags flags) const
         }
         if (fstrm) {
             x_CreatePath(m_CurrentFlags);
-            fstrm->open(AsString().c_str(),IOS_BASE::in | IOS_BASE::out | mode);
+            fstrm->open(AsString().c_str(),/*IOS_BASE::in*/IOS_BASE::trunc | IOS_BASE::out | mode); //change in to trunc  by kyzhao
             if ( !fstrm->is_open() ) {
                 delete fstrm;
                 fstrm = NULL;
@@ -1037,10 +1037,14 @@ CArgValue* CArgDescMandatory::ProcessArgument(const string& value) const
         arg_value = new CArg_InputFile(GetName(), value, GetFlags());
         break;
     }
+    ///// CHANGED by kyzhao/////
     case CArgDescriptions::eOutputFile: {
         arg_value = new CArg_OutputFile(GetName(), value, GetFlags());
+        //arg_value = new CArg_IOFile(GetName(), value, GetFlags());
         break;
     }
+    ///// CHANGED /////
+
     case CArgDescriptions::eIOFile: {
         arg_value = new CArg_IOFile(GetName(), value, GetFlags());
         break;
@@ -2284,6 +2288,84 @@ void CArgDescriptions::x_CheckAutoHelp(const string& arg) const
 }
 
 
+//modified by kyzhao 2013.7.10
+// (return TRUE if "arg2" was used)
+bool CArgDescriptions::x_CreateArg(const string& arg1,
+	bool have_arg2, const string& arg2,
+	unsigned* n_plain, CArgs& args, bool  update) const
+{
+	// Argument name
+	string name;
+
+	// Check if to start processing the args as positional
+	if (*n_plain == kMax_UInt) {
+		// Check for the "--" delimiter
+		if (arg1.compare("--") == 0) {
+			*n_plain = 0;  // pos.args started
+			return false;
+		}
+		size_t  argssofar = args.GetAll().size();
+		// Check if argument has not a key/flag syntax
+		if ((arg1.length() > 1)  &&  arg1[0] == '-') {
+			name = arg1.substr(1);
+			TArgsCI it = m_Args.end();
+			try {
+				it = x_Find(name);
+			} catch (CArgException&) {
+			}
+			if (it == m_Args.end()) {
+				if (m_OpeningArgs.size() > argssofar) {
+					return x_CreateArg(arg1, m_OpeningArgs[argssofar], have_arg2, arg2, *n_plain, args);
+				}
+			}
+			// Check for '=' in the arg1
+			size_t eq = name.find('=');
+			if (eq != NPOS) {
+				name = name.substr(0, eq);
+			}
+			if (m_PositionalMode == ePositionalMode_Loose) {
+				// If not a valid key/flag, treat it as a positional value
+				if (!VerifyName(name)  ||  x_Find(name) == m_Args.end()) {
+					*n_plain = 0;  // pos.args started
+				}
+			}
+		} else {
+			if (m_OpeningArgs.size() > argssofar) {
+				return x_CreateArg(arg1, m_OpeningArgs[argssofar], have_arg2, arg2, *n_plain, args);
+			}
+			*n_plain = 0;  // pos.args started
+		}
+	}
+
+	// Whether the value of "arg2" is used
+	bool arg2_used = false;
+
+	// Extract name of positional argument
+	if (*n_plain != kMax_UInt) {
+		if (*n_plain < m_PosArgs.size()) {
+			name = m_PosArgs[*n_plain];  // named positional argument
+		} else {
+			name = kEmptyStr;  // unnamed (extra) positional argument
+		}
+		(*n_plain)++;
+
+		// Check for too many positional arguments
+		if (kMax_UInt - m_nExtraOpt > m_nExtra + m_PosArgs.size()  &&
+			*n_plain > m_PosArgs.size() + m_nExtra + m_nExtraOpt) {
+				NCBI_THROW(CArgException,eSynopsis,
+					"Too many positional arguments (" +
+					NStr::UIntToString(*n_plain) +
+					"), the offending value: "+ arg1);
+		}
+	}
+
+	arg2_used = x_CreateArg(arg1, name, have_arg2, arg2, *n_plain, args, update);
+
+	// Success (also indicate whether one or two "raw" args have been used)
+	return arg2_used;
+}
+
+#if 0
 // (return TRUE if "arg2" was used)
 bool CArgDescriptions::x_CreateArg(const string& arg1,
                                    bool have_arg2, const string& arg2,
@@ -2359,7 +2441,7 @@ bool CArgDescriptions::x_CreateArg(const string& arg1,
     // Success (also indicate whether one or two "raw" args have been used)
     return arg2_used;
 }
-
+#endif
 
 bool CArgDescriptions::x_CreateArg(const string& arg1,
                                    const string& name, 

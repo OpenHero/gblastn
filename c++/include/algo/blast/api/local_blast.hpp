@@ -89,6 +89,11 @@ public:
     
     /// Executes the search
     CRef<CSearchResultSet> Run();
+	//////////////////////////////////////////////////////////////////////////
+	// add two parts PrelimSearchRun and TraceBackRun by kyzhao 2013.8.7
+	int  PrelimSearchRun(CRef<CSearchResultSet> retval);
+	CRef<CSearchResultSet> TraceBackRun();
+	//////////////////////////////////////////////////////////////////////////
     
     /// Set a function callback to be invoked by the CORE of BLAST to allow
     /// interrupting a BLAST search in progress.

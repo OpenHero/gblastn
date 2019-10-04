@@ -51,6 +51,13 @@ static char const rcsid[] = "$Id: seqdbvol.cpp 389295 2013-02-14 18:44:05Z rafan
 
 #include <sstream>
 
+//////////////////////////////////////////////////////////////////////////
+//added by kyzhao for gpu blastn 2013.04.30
+#include <tmmintrin.h>
+#include <emmintrin.h>
+#include <algo/blast/gpu_blast/gpu_blastn_config.hpp>
+
+
 BEGIN_NCBI_SCOPE
 
 int CSeqDBGiIndex::GetSeqGI(TOid             oid,
@@ -501,7 +508,27 @@ s_SeqDBMapNA2ToNA8(const char        * buf2bit,
     // from a vector.
     
     p = whole_chars_begin;
-    
+
+#if OPT_TRACEBACK
+
+	//total_translate += whole_chars_end-p; //for test;
+	//printf("%d\n",total_translate);
+
+	const Uint4* p_expanded = (Uint4*)&expanded.front();
+	const unsigned char* p_buf2bit = (unsigned char*)(buf2bit+p);
+	Uint4* 	p_buf8bit = (Uint4*)(buf8bit+pos);
+
+	int loop_times = (whole_chars_end-p);
+
+	for(int i = 0; i < loop_times; i++)
+	{
+		Int4 table_offset = p_buf2bit[i];
+		p_buf8bit[i] = p_expanded[table_offset];
+	}
+
+	pos += loop_times*4;
+	p = whole_chars_end;
+#else
     while(p < whole_chars_end) {
         Int4 table_offset = (buf2bit[p] & 0xFF) * 4;
         
@@ -511,6 +538,7 @@ s_SeqDBMapNA2ToNA8(const char        * buf2bit,
         buf8bit[pos++] = expanded[ table_offset + 3 ];
         p++;
     }
+#endif
     
     if (p < input_chars_end) {
         Int4 table_offset = (buf2bit[p] & 0xFF) * 4;
@@ -559,13 +587,70 @@ unsigned SeqDB_ncbina8_to_blastna8[] = {
 ///    The array of nucleotides to convert. [in|out]
 /// @param range
 ///    The range of opearation. [in]
-static void
-s_SeqDBMapNcbiNA8ToBlastNA8(char              * buf, 
-                            const SSeqDBSlice & range)
-{
-    for(int i = range.begin; i < range.end; i++)  
-        buf[i] = SeqDB_ncbina8_to_blastna8[ buf[i] & 0xF ];
+
+#if OPT_TRACEBACK
+
+#ifndef WIN32
+unsigned int a[] __attribute__ ((aligned(16))) ={0x0601000f, 0x0d090402, 0x0c050803, 0x0e0a0b07};
+#endif
+
+static void s_SeqDBMapNcbiNA8ToBlastNA8(char              * buf, 
+	const SSeqDBSlice & range)
+{  
+#ifdef WIN32
+	__m128i SeqDB_ncbina8_to_blastna8_m128;
+	SeqDB_ncbina8_to_blastna8_m128.m128i_u64[0] = 0x0d0904020601000f;//939286404020633615;
+	SeqDB_ncbina8_to_blastna8_m128.m128i_u64[1] = 0x0e0a0b070c050803;//1011633191192430595;
+
+
+#else
+	//__m128i SeqDB_ncbina8_to_blastna8_m128 = _mm_set_epi64x(0x0d0904020601000f, 0x0e0a0b070c050803);
+	__m128i* SeqDB_ncbina8_to_blastna8_m128 = (__m128i*)a;
+#endif
+	int begin = range.begin;
+	int end = range.end;
+
+	int loop_times = end - begin;
+	int rem_num = loop_times%16;
+	int si128_loop_times = loop_times>>4;
+
+	__m128i* p_buf = (__m128i*) (buf+begin);
+
+	for (int i = 0; i < si128_loop_times; i++)
+	{
+		__m128i t_buf = _mm_loadu_si128(p_buf);
+#if WIN32
+		t_buf = _mm_shuffle_epi8(SeqDB_ncbina8_to_blastna8_m128, t_buf);
+#else
+		t_buf = _mm_shuffle_epi8(*SeqDB_ncbina8_to_blastna8_m128, t_buf);
+#endif	
+		_mm_storeu_si128(p_buf, t_buf);
+		p_buf++;
+	}
+
+	for(int i = end-rem_num; i < end; i++)  
+		buf[i] = SeqDB_ncbina8_to_blastna8[ buf[i] & 0xF ];
 }
+
+#else
+/// Convert sequence data from Ncbi-NA8 to Blast-NA8 format
+///
+/// This uses a translation table to convert nucleotide data.  The
+/// input data is in Ncbi-NA8 format, the output data will be in
+/// Blast-NA8 format.  The data is converted in-place.
+///
+/// @param buf
+///    The array of nucleotides to convert. [in|out]
+/// @param range
+///    The range of opearation. [in]
+static void
+	s_SeqDBMapNcbiNA8ToBlastNA8(char              * buf, 
+	const SSeqDBSlice & range)
+{
+	for(int i = range.begin; i < range.end; i++)  
+		buf[i] = SeqDB_ncbina8_to_blastna8[ buf[i] & 0xF ];
+}
+#endif
 
 //--------------------
 // NEW (long) version

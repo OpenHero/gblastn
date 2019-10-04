@@ -52,6 +52,10 @@ static char const rcsid[] =
 #include <algo/blast/core/blast_traceback.h>
 #include <algo/blast/core/blast_hits.h>
 
+//////////////////////////////////////////////////////////////////////////
+//added by kyzhao for gpu blastn
+#include <algo/blast/gpu_blast/gpu_logfile.h>
+
 /** @addtogroup AlgoBlast
  *
  * @{
@@ -197,6 +201,11 @@ CBlastTracebackSearch::Run()
     _ASSERT(m_OptsMemento);
     SPHIPatternSearchBlk* phi_lookup_table(0);
 
+	//////////////////////////////////////////////////////////////////////////
+	// added by kyzhao for gpu 
+	__int64 c1 = slogfile.Start();
+
+
     // For PHI BLAST we need to pass the pattern search items structure to the
     // traceback code
     bool is_phi = !! Blast_ProgramIsPhiBlast(m_OptsMemento->m_ProgramType);
@@ -280,6 +289,11 @@ CBlastTracebackSearch::Run()
         query_ids.push_back(CConstRef<CSeq_id>(qdata->GetSeq_loc(i)->GetId()));
     }
     
+	//////////////////////////////////////////////////////////////////////////
+	//added by kyzhao for gpu
+	__int64 c2 = slogfile.Start();
+	slogfile.addTotalTime("Traceback stage time",c1,c2, false);
+
     return BlastBuildSearchResultSet(query_ids,
                                      m_InternalData->m_ScoreBlk->GetPointer(),
                                      m_InternalData->m_QueryInfo,

@@ -66,6 +66,8 @@ static char const rcsid[] = "$Id: winmask_filter.cpp 356370 2012-03-13 19:29:11Z
 #include <algo/winmask/seq_masker.hpp>
 #include <corelib/env_reg.hpp>
 
+#include <algo/blast/gpu_blast/gpu_blastn_config.hpp> // added by kyzhao 2013/4/26
+
 /** @addtogroup AlgoBlast
  *
  * @{
@@ -254,7 +256,56 @@ Blast_FindWindowMaskerLoc(TSeqLocVector             & query,
 // differences so that the algorithm is not duplicated.  Another
 // alternative is to (continue to) replace TSeqLocVector with
 // CBlastQueryVector as was originally planned.
+//////////////////////////////////////////////////////////////////////////
+// modified by kyzhao in 2013/4/25 & 2013/7/16
+#if OPT_TRACEBACK
+AutoPtr<CSeqMasker> masker = NULL;
+string last_lstat = "";
+void
+	Blast_FindWindowMaskerLoc(CBlastQueryVector & queries, const string & lstat)
+{
+	if (last_lstat != lstat)
+	{
+		if (masker.get() != NULL) masker.release();
 
+		masker.reset(s_BuildSeqMasker(lstat));
+		last_lstat = lstat;
+	}
+	//AutoPtr<CSeqMasker> masker(s_BuildSeqMasker(lstat));
+
+	for(size_t j = 0; j < queries.Size(); j++) {
+		CBlastSearchQuery & query = *queries.GetBlastSearchQuery(j);
+
+		// Get SeqVector, query Seq-id, and range.
+
+		CConstRef<CSeq_loc> seqloc = query.GetQuerySeqLoc();
+
+		CSeqVector psv(*seqloc,
+			*queries.GetScope(j),
+			CBioseq_Handle::eCoding_Iupac,
+			eNa_strand_plus);
+
+		CRef<CSeq_id> query_seq_id(new CSeq_id);
+		query_seq_id->Assign(*seqloc->GetId());
+
+		// Mask the query.
+
+		AutoPtr<CSeqMasker::TMaskList> pos_masks((*masker)(psv));
+		//AutoPtr<CSeqMasker::TMaskList> pos_masks((*p_masker)(psv));
+		//CSeqMasker::TMaskList *p_pos_masks = (*p_masker)(psv);
+
+		TMaskedQueryRegions mqr;
+
+		s_BuildMaskedRanges(*pos_masks,
+			*seqloc,
+			*query_seq_id,
+			& mqr,
+			0);
+
+		query.SetMaskedRegions(mqr);
+	}
+}
+#else
 void
 Blast_FindWindowMaskerLoc(CBlastQueryVector & queries, const string & lstat)
 {
@@ -290,6 +341,7 @@ Blast_FindWindowMaskerLoc(CBlastQueryVector & queries, const string & lstat)
         query.SetMaskedRegions(mqr);
     }
 }
+#endif
 
 void
 Blast_FindWindowMaskerLoc(TSeqLocVector & queries, const string & lstat)

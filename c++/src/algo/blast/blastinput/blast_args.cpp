@@ -2285,7 +2285,8 @@ CStdCmdLineArgs::SetArgumentDescriptions(CArgDescriptions& arg_desc)
     // report output file
     arg_desc.AddDefaultKey(kArgOutput, "output_file", 
                    "Output file name",
-                   CArgDescriptions::eOutputFile, "-");
+                   //CArgDescriptions::eOutputFile, "-");
+				   CArgDescriptions::eIOFile, "-");	//modified by kyzhao
 
     arg_desc.SetCurrentGroup("");
 }
@@ -2294,11 +2295,14 @@ void
 CStdCmdLineArgs::ExtractAlgorithmOptions(const CArgs& args,
                                          CBlastOptions& /* opt */)
 {
-    if (args.Exist(kArgQuery) && args[kArgQuery].HasValue() &&
-        m_InputStream == NULL) {
+    if (args.Exist(kArgQuery) && args[kArgQuery].HasValue() /* &&
+        m_InputStream == NULL*/) { // modified by kyzhao 2013.7.10
         m_InputStream = &args[kArgQuery].AsInputFile();
     }
-    m_OutputStream = &args[kArgOutput].AsOutputFile();
+    ///// CHANGED by kyzhao/////
+    m_IOStream = &args[kArgOutput].AsIOFile();
+    //m_OutputStream = &args[kArgOutput].AsOutputFile();
+    ///// CHANGED /////
 }
 
 CNcbiIstream&
@@ -2320,6 +2324,17 @@ CStdCmdLineArgs::GetOutputStream() const
     _ASSERT(m_OutputStream);
     return *m_OutputStream;
 }
+
+///// CHANGED by kyzhao /////
+CNcbiIostream&
+CStdCmdLineArgs::GetIOStream() const
+{
+    // programmer must ensure the ExtractAlgorithmOptions method is called
+    // before this method is invoked
+    _ASSERT(m_IOStream);
+    return *m_IOStream;
+}
+///// CHANGED /////
 
 void
 CStdCmdLineArgs::SetInputStream(CRef<CTmpFile> input_file)
@@ -2453,6 +2468,105 @@ void CBlastAppArgs::SetTask(const string& task)
 #endif
     m_Task.assign(task);
 }
+
+//////////////////////////////////////////////////////////////////////////
+// added by kyzhao for GPU blastn
+/* *********** START ************* */
+void CGpuArgs::SetArgumentDescriptions(CArgDescriptions& arg_desc)
+{
+
+	arg_desc.SetCurrentGroup("GPU Options");
+
+	arg_desc.AddDefaultKey(kArgMethod, "int_value",
+		"Methods: 1 normal, 2 pipeline in query, 3 pipeline between queries",
+		CArgDescriptions::eInteger,
+		kDfltArgMethod);
+
+	arg_desc.AddDefaultKey(kArgQueryList, "string_value",
+		"Query list file",
+		CArgDescriptions::eString,
+		kDfltArgQueryList);
+
+	arg_desc.AddDefaultKey(kArgUseGpu, "",
+		"Use GPU Cards for blastn",
+		CArgDescriptions::eBoolean,
+		kDfltArgUseGpu);
+
+	arg_desc.AddDefaultKey(kArgGpuID, "int_value",
+		"GPU ID",
+		CArgDescriptions::eInteger,
+		kDfltArgGpuID);
+
+	//////////////////////////////////////////////////////////////////////////
+
+	arg_desc.AddDefaultKey(kArgPrepareThread, "int_value",
+		"Prepare Thread number",
+		CArgDescriptions::eInteger,
+		kDfltArgPrepareThread);
+
+	arg_desc.AddDefaultKey(kArgPrelimThread, "int_value",
+		"PrelimSearch Thread number",
+		CArgDescriptions::eInteger,
+		kDfltArgPrelimThread);
+
+	arg_desc.AddDefaultKey(kArgTraceThread, "int_value",
+		"Traceback Thread number",
+		CArgDescriptions::eInteger,
+		kDfltArgTraceThread);
+
+	arg_desc.AddDefaultKey(kArgPrintThread, "int_value",
+		"Print Thread number",
+		CArgDescriptions::eInteger,
+		kDfltArgPrintThread);
+
+	//////////////////////////////////////////////////////////////////////////
+	
+	arg_desc.AddDefaultKey(kArgConverted, "",
+		"Use Converted Database for blastn",
+		CArgDescriptions::eBoolean,
+		kDfltArgConverted);
+}
+
+void CGpuArgs::ExtractAlgorithmOptions(const CArgs& args,
+	CBlastOptions& opts)
+{
+	if (args[kArgMethod])
+	{
+		opts.SetMethod(args[kArgMethod].AsInteger());
+	}
+
+	if (args[kArgQueryList])
+	{
+		opts.SetQueryList(args[kArgQueryList].AsString());
+	}
+
+	if( args[kArgUseGpu] ){
+		opts.SetUseGpu(args[kArgUseGpu].AsBoolean());
+	}
+
+	if( args[kArgGpuID] ){
+		opts.SetGpuID(args[kArgGpuID].AsInteger());
+	}
+
+	if( args[kArgPrepareThread] ){
+		opts.SetPrepareNum(args[kArgPrepareThread].AsInteger());
+	}
+	if( args[kArgPrelimThread] ){
+		opts.SetPrelimNum(args[kArgPrelimThread].AsInteger());
+	}
+	if( args[kArgTraceThread] ){
+		opts.SetTraceNum(args[kArgTraceThread].AsInteger());
+	}
+	if( args[kArgPrintThread] ){
+		opts.SetPrintNum(args[kArgPrintThread].AsInteger());
+	}
+
+	if( args[kArgConverted] ){
+		opts.SetConverted(args[kArgConverted].AsBoolean());
+	}
+}
+
+/* ********** FINISH ************* */
 
 CArgDescriptions* 
 SetUpCommandLineArguments(TBlastCmdLineArgs& args)

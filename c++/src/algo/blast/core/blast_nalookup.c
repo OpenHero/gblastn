@@ -128,13 +128,19 @@ BlastChooseNaLookupTable(const LookupTableOptions* lookup_options,
       if (approx_table_entries < 12000) {
          *lut_width = 8;
          lut_type = eSmallNaLookupTable;
-      } else if (approx_table_entries < 180000) {
-         *lut_width = 10;
-         lut_type = eMBLookupTable;
-      } else {
-         *lut_width = 11;
-         lut_type = eMBLookupTable;
-      }
+      //} else if (approx_table_entries < 180000) {
+      //   *lut_width = 10;
+      //   lut_type = eMBLookupTable;
+      //} else {
+      //   *lut_width = 11;
+      //   lut_type = eMBLookupTable;
+      //}
+	   // modified by kyzhao 2013.7.23
+	  }else
+	   {
+		   *lut_width = 11;
+		   lut_type = eMBLookupTable;
+	   }
       break;
 
    case 12:

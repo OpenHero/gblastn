@@ -340,6 +340,40 @@ NCBI_BLASTINPUT_EXPORT extern const string kArgRid;
 NCBI_BLASTINPUT_EXPORT extern const string kArgArchive;
 
 
+
+//////////////////////////////////////////////////////////////////////////
+//added by kyzhao for GPU blastn
+
+/* *********** START ************* */
+/// GPU arguments                                                   
+NCBI_BLASTINPUT_EXPORT extern const string kArgMethod;//("hc_method");
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgMethod;//("1");
+
+NCBI_BLASTINPUT_EXPORT extern const string kArgQueryList;//("query_list");
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgQueryList;//("");
+
+NCBI_BLASTINPUT_EXPORT extern const string kArgUseGpu;//("use_gpu");
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgUseGpu;//("false");
+NCBI_BLASTINPUT_EXPORT extern const string kArgGpuID;//("gpu_id");
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgGpuID;//("0");
+
+NCBI_BLASTINPUT_EXPORT extern const string kArgPrepareThread;//("pre_t_num");
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgPrepareThread;//("1");
+
+NCBI_BLASTINPUT_EXPORT extern const string kArgPrelimThread;//("prelim_t_num");
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgPrelimThread;//("1");
+
+NCBI_BLASTINPUT_EXPORT extern const string kArgTraceThread;//("trace_t_num");
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgTraceThread;//("1");
+
+NCBI_BLASTINPUT_EXPORT extern const string kArgPrintThread;//("print_t_num");
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgPrintThread;//("1");
+
+NCBI_BLASTINPUT_EXPORT extern const string kArgConverted;
+NCBI_BLASTINPUT_EXPORT extern const string kDfltArgConverted;//("false");
+/* ********** FINISH ************* */
+
+
 END_SCOPE(blast)
 END_NCBI_SCOPE
 

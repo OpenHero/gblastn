@@ -177,6 +177,16 @@ const CArgs& CNcbiApplication::GetArgs(void) const
     return *m_Args;
 }
 
+//added by kyzhao 2013.7.10
+CArgs& CNcbiApplication::GetArgs(void)
+{
+	if ( !m_Args.get() ) {
+		NCBI_THROW(CAppException, eUnsetArgs,
+			"Command-line argument description is not found");
+	}
+	return *m_Args;
+}
+
 
 SIZE_TYPE CNcbiApplication::FlushDiag(CNcbiOstream* os, bool /*close_diag*/)
 {

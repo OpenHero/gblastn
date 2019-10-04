@@ -51,7 +51,9 @@ extern "C" {
 #endif
 
 /** Split subject sequences if longer than this */
-#define MAX_DBSEQ_LEN 5000000 
+//#define MAX_DBSEQ_LEN 5000000 
+#define MAX_DBSEQ_LEN 200000000 // added by kyzhao for gpu
+
 
 /** Auxiliary structure for dynamic programming gapped extension */
 typedef struct {

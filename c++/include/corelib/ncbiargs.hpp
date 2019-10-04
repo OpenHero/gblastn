@@ -894,6 +894,22 @@ public:
     {
         return m_AutoHelp;
     }
+
+	///added by kyzhao 2013.7.10
+	/// Process arguments.
+	///
+	/// Helper method to process arguments and build a CArgs object that is
+	/// passed as the args parameter.
+	/// @return
+	///   TRUE if specified "arg2" was used.
+	bool    x_CreateArg(const string& arg1, ///< Argument to process 
+		bool have_arg2, ///< Is there an arg. that follows?
+		const string& arg2, ///< Following argument
+		unsigned* n_plain,  ///< Indicates number of args 
+		CArgs& args,         ///< Contains processed args
+		bool          update = false
+		) const;
+
 private:
     typedef set< AutoPtr<CArgDesc> >  TArgs;    ///< Argument descr. type
     typedef TArgs::iterator           TArgsI;   ///< Arguments iterator
@@ -971,6 +987,7 @@ private:
                         const CArgDesc& arg,
                         SIZE_TYPE       width) const;
 
+#if 0  // modified by kyzhao 2013.7.10
     /// Process arguments.
     ///
     /// Helper method to process arguments and build a CArgs object that is
@@ -983,6 +1000,7 @@ private:
                         unsigned* n_plain,  ///< Indicates number of args 
                         CArgs& args         ///< Contains processed args
                        ) const;
+#endif
 
     /// @return
     ///   TRUE if specified "arg2" was used.
