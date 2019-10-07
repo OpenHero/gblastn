@@ -14,7 +14,7 @@ CC	:= gcc
 CXX 	:= g++
 NVCC	:= $(NVCC_PATH)/bin/nvcc
 
-CXX_DIR := $(top_srcdir)
+CXX_DIR := @top_srcdir@
 CUDA_LIB := $(NVCC_PATH)/lib64
 
 PROJ_DIR := @build_root@
@@ -24,7 +24,7 @@ OBJ = $(CPP_SRC:.cpp=.o)
 
 #@echo $(OBJ)
 
-INCLUDE = -I$(CXX_DIR)include/ -I$(PROJ_DIR)/inc/ -I$(CXX_DIR)/src -I./ -I$(NVCC_PATH)/include -I$(NVCC_PATH)/samples/common/inc 
+INCLUDE = -I$(CXX_DIR)include/ -I$(PROJ_DIR)/inc/ -I$(CXX_DIR)/include -I$(CXX_DIR)/src -I./ -I$(NVCC_PATH)/include -I$(NVCC_PATH)/samples/common/inc 
 
 COMMONFLAGS := -c 
 OPT_COMMAND := -mssse3

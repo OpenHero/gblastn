@@ -36,7 +36,7 @@ XAPP = $(APP)@exe_ext@
 XOBJ = $(SOURCES:=@obj_ext@)
 XOBJ2 = $(OBJ:=@obj_ext@)
 XAPP_LIB = @APP_LIB_SETTING@
-XAPP_LIBS = @APP_LIBS_SETTING@
+XAPP_LIBS = @APP_LIBS_SETTING@ 
 XLIB = $(runpath) @f_libpath@$(libdir) $(XAPP_LIB:%=@lib_l_pre@%@lib_l_ext@)
 XLIBDEP = $(XAPP_LIB:%=$(status_dir)/.%.dep)
 
