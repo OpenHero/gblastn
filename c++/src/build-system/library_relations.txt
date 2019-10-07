@@ -508,6 +508,7 @@ blast_app_util needs xalgowinmask
 blast_app_util needs xalnmgr
 blast_app_util needs xblast
 blast_app_util needs xblastformat
+blast_app_util needs gpublast
 blast_app_util needs xcgi
 blast_app_util needs xcompress
 blast_app_util needs xconnect

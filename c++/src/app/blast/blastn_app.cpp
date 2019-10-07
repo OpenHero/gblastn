@@ -49,7 +49,7 @@ static char const rcsid[] =
 ///// CHANGED by kyzhao /////
 //#include "utility.h"
 #include <sstream>
-#if linux__
+#if __linux__
 #include <unistd.h>
 #endif
 
@@ -853,7 +853,7 @@ int CBlastnApp::Method2_opt(string job_name)
 		while (p_print_thread->GetProcessNum() != k)
 		{
 			//cout << ".";
-#ifdef linux__
+#ifdef __linux__
 			usleep(3);
 #endif
 		}
@@ -1226,7 +1226,7 @@ int CBlastnApp::Method3(const CBlastOptions& opt)
 
 				while (p->GetTotalJobNum() != total_jobs)
 				{
-#ifdef linux__
+#ifdef __linux__
 					usleep(3);
 #endif
 				}

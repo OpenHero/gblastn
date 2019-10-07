@@ -9,7 +9,7 @@ typedef  HANDLE ThreadHandle;
 typedef unsigned RETURN_INT;
 #endif // _MSC_VER
 
-#ifdef linux__
+#ifdef __linux__
 #include <pthread.h>
 typedef  pthread_t ThreadHandle;
 typedef void* RETURN_INT;

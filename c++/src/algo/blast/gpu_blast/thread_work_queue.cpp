@@ -33,7 +33,7 @@ static void SetThreadName( DWORD dwThreadID, char* threadName)
 }
 #endif
 
-#if linux__
+#if __linux__
 #include<sys/prctl.h>
 
 static void SetThreadName( unsigned long dwThreadID, char* threadName)
@@ -63,7 +63,7 @@ void ThreadLock::SetCurrentThreadName(unsigned long thread_id, string name)
 
 void ThreadLock::SectionLock()
 {
-#ifdef linux__
+#ifdef __linux__
 	pthread_mutex_lock(&mutex_lock);
 #endif
 #ifdef _MSC_VER						  
@@ -73,7 +73,7 @@ void ThreadLock::SectionLock()
 
 void ThreadLock::SectionUnlock()
 {
-#ifdef linux__
+#ifdef __linux__
 	pthread_mutex_unlock(&mutex_lock);
 #endif
 #ifdef _MSC_VER
@@ -82,7 +82,7 @@ void ThreadLock::SectionUnlock()
 }
 
 
-#ifdef linux__
+#ifdef __linux__
 pthread_mutex_t & ThreadLock::GetMutex() { return mutex_lock;};
 #endif
 
@@ -92,7 +92,7 @@ CRITICAL_SECTION  & ThreadLock::GetMutex() { return mutex_lock;};
 
 void ThreadLock::InitMutexLock()
 {
-#ifdef linux__
+#ifdef __linux__
 	pthread_mutex_init(&mutex_lock, NULL);
 #endif
 
@@ -103,7 +103,7 @@ void ThreadLock::InitMutexLock()
 
 void ThreadLock::DeleteMutexLock()
 {
-#ifdef linux__
+#ifdef __linux__
 	pthread_mutex_destroy(&mutex_lock);
 #endif
 #ifdef _MSC_VER

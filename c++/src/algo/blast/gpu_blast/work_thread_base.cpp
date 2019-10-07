@@ -7,12 +7,12 @@
 BEGIN_NCBI_SCOPE
 BEGIN_SCOPE(blast)
 
-#ifdef linux__
+#ifdef __linux__
 static void* runThread(void* arg)
 {
 	return ((WorkThreadBase*)arg)->run();
 }
-#endif // linux__
+#endif // __linux__
 
 #ifdef _MSC_VER
 unsigned int __stdcall runThread( void* arg )
@@ -26,9 +26,9 @@ WorkThreadBase::WorkThreadBase() : m_tid(0), m_running(0), m_detached(0) {}
 WorkThreadBase::~WorkThreadBase()
 {
 	if (m_running == 1) {
-#ifdef linux__
+#ifdef __linux__
 		pthread_cancel(m_thandle);
-#endif // linux__
+#endif // __linux__
 #ifdef _MSC_VER
 		TerminateThread(m_thandle, 0);
 #endif // _MSC_VER
@@ -48,12 +48,12 @@ int WorkThreadBase::start()
 		result = -1;
 	}
 #endif
-#ifdef linux__
+#ifdef __linux__
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 	pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
 	result = pthread_create(&m_thandle, &attr, runThread, this);
-#endif //linux__
+#endif //__linux__
 	if (result == 0) {
 		m_running = 1;
 	}
@@ -78,9 +78,9 @@ int WorkThreadBase::join()
 			}
 		}
 #endif // _MSC_VER
-#ifdef linux__
+#ifdef __linux__
 		result = pthread_join(m_thandle, NULL);
-#endif // linux__
+#endif // __linux__
 
 		if (result == 0) {
 			m_detached = 0;
@@ -98,9 +98,9 @@ int WorkThreadBase::detach()
 			result = 0;
 #endif
 
-#ifdef linux__
+#ifdef __linux__
 		result = pthread_detach(m_thandle);
-#endif // linux__
+#endif // __linux__
 		if (result == 0) {
 			m_detached = 1;
 		}
