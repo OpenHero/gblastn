@@ -11,17 +11,17 @@ Citation:
 K. Zhao and X.-W. Chu, “G-BLASTN: Accelerating Nucleotide Alignment by Graphics Processors”, Oxford, Bioinformatics, 2014.
 http://bioinformatics.oxfordjournals.org/content/early/2014/01/24/bioinformatics.btu047.abstract?keytype=ref&ijkey=FkuzgmzzPTJss9c 
 
-@article{KY Zhao2014},
-author = {Kaiyong Zhao and Xiaowen Chu},
-title = {{G-BLASTN: accelerating nucleotide alignment by graphics processors}},
-journal = {Bioinformatics},
-year = {2014},
-volume = {30},
-number = {10},
-pages = {1384-1391},
-doi = {10.1093/bioinformatics/btu047},
-url = {https://academic.oup.com/bioinformatics/article/30/10/1384/267507}
-}
+  @article{KY Zhao2014,
+  author = {Kaiyong Zhao and Xiaowen Chu},
+  title = {{G-BLASTN: accelerating nucleotide alignment by graphics processors}},
+  journal = {Bioinformatics},
+  year = {2014},
+  volume = {30},
+  number = {10},
+  pages = {1384-1391},
+  doi = {10.1093/bioinformatics/btu047},
+  url = {https://academic.oup.com/bioinformatics/article/30/10/1384/267507}
+  }
 
 Acknowledgement:
 
