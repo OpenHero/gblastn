@@ -20,27 +20,13 @@ This project is supported by grant FRG2/11-12/158 from Hong Kong Baptist Univers
 
 Merge with ncbi-blast-2.2.28+.src support CUDA 10.1 Ubuntu 18.x GCC 7.x
 
-### install
+### Install
 ./configure --without-debug --with-mt --without-sybase --without-fastcgi --without-sssdb --without-sss --without-geo --without-sp --without-orbacus --without-boost
 
 make 
 
-### user guide
-Shell g.m.sh
-
-
-#!/bin/sh
-echo "***************start*****************"
-blastn="/home/kyle/testGBTN/gblastn/c++/GCC700-ReleaseMT64/bin/blastn"
-data_dir="/home/kyle/ncbi/"
-database="${data_dir}database/blastdb/human.wm"
-maskdb="${data_dir}database/blastdb/human.stat"
-query_list="m.ls"
-outpath="${data_dir}log/log.txt"
- 
-$blastn -db $database -window_masker_db $maskdb -query_list $query_list -evalue 1e-5 -max_target_seqs 10 -outfmt "7" -out $outpath -use_gpu true
-
-echo "***************complete*****************"
+### User guide
+Please follow the example in shell directory.
 
 
 ## More details
