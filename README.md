@@ -22,10 +22,13 @@ Merge with ncbi-blast-2.2.28+.src support CUDA 10.1 Ubuntu 18.x GCC 7.x
 
 ### install
 ./configure --without-debug --with-mt --without-sybase --without-fastcgi --without-sssdb --without-sss --without-geo --without-sp --without-orbacus --without-boost
+
 make 
 
 ### user guide
 Shell g.m.sh
+
+
 #!/bin/sh
 echo "***************start*****************"
 blastn="/home/kyle/testGBTN/gblastn/c++/GCC700-ReleaseMT64/bin/blastn"
