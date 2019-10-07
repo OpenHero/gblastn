@@ -11,12 +11,6 @@ Citation:
 K. Zhao and X.-W. Chu, “G-BLASTN: Accelerating Nucleotide Alignment by Graphics Processors”, Oxford, Bioinformatics, 2014.
 http://bioinformatics.oxfordjournals.org/content/early/2014/01/24/bioinformatics.btu047.abstract?keytype=ref&ijkey=FkuzgmzzPTJss9c 
 
-G-BLASTN is free software and you can browse/download the source code at:
-https://sourceforge.net/p/gblastn
-or
-https://github.com/OpenHero/gblastn
-
-
 Acknowledgement:
 
 This project is supported by grant FRG2/11-12/158 from Hong Kong Baptist University. We also thank NVIDIA corporation for their donation of GPU cards.
@@ -46,3 +40,5 @@ $blastn -db $database -window_masker_db $maskdb -query_list $query_list -evalue 
 echo "***************complete*****************"
 
 
+## More details
+https://www.comp.hkbu.edu.hk/~chxw/software/G-BLASTN.html
