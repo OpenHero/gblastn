@@ -26,33 +26,23 @@ This project is supported by grant FRG2/11-12/158 from Hong Kong Baptist Univers
 
 Merge with ncbi-blast-2.2.28+.src support CUDA 10.1 Ubuntu 18.x GCC 7.x
 
-### build
-Build gpu part first.
-in c++/src/algo/blast/gpu_blast
-make -f makefile
-and copy the libgpublast.a to build directory.
+### install
+./configure --without-debug --with-mt --without-sybase --without-fastcgi --without-sssdb --without-sss --without-geo --without-sp --without-orbacus --without-boost
+make 
+
+### user guide
+Shell g.m.sh
+#!/bin/sh
+echo "***************start*****************"
+blastn="/home/kyle/testGBTN/gblastn/c++/GCC700-ReleaseMT64/bin/blastn"
+data_dir="/home/kyle/ncbi/"
+database="${data_dir}database/blastdb/human.wm"
+maskdb="${data_dir}database/blastdb/human.stat"
+query_list="m.ls"
+outpath="${data_dir}log/log.txt"
+ 
+$blastn -db $database -window_masker_db $maskdb -query_list $query_list -evalue 1e-5 -max_target_seqs 10 -outfmt "7" -out $outpath -use_gpu true
+
+echo "***************complete*****************"
 
 
-
-
-## News v1.1: 
- 1.1 [November 2013] version release is built on NCBI-BLAST 2.2.28.
-
-### I. Supported features
-=====================
-G-BLASTN accelerates the blastn module of NCBI-BLAST by GPUs. G-BLASTN has been tested on 
-NVIDIA GPUs Tesla C2050， GTX680, GTX780, and Quadro K5000. 
-
-### Requirement:
-============
-1). Nvidia GPU card with compute capability > 1.3 <br \>
-2). CUDA5.5 version. https://developer.nvidia.com/cuda-toolkit
-
-### II. Installation instructions
-=============================
-
-https://github.com/OpenHero/gblastn/wiki/Install-guide
-
-### III. How to use G-BLASTN
-========================
-https://github.com/OpenHero/gblastn/wiki/User-guide
