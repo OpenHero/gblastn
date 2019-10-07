@@ -20,7 +20,7 @@ OBJ = $(CPP_SRC:.cpp=.o)
 
 INCLUDE = -I$(CXX_DIR)include/ -I$(PROJ_DIR)/inc/ -I$(CXX_DIR)/src -I./ -I$(NVCC_PATH)/include -I$(NVCC_PATH)/samples/common/inc 
 
-COMMONFLAGS := -c -D_LINUX
+COMMONFLAGS := -c 
 OPT_COMMAND := -mssse3
 # the "--no-align-double" is necessary. Without it the nvcc compiler aligns structure sizes every 8 bytes which is 
 #incompatible with some NCBI_BLAST data structures, i.e. the "BlastContextInfo"

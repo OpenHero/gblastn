@@ -33,7 +33,7 @@ public:
 	void SectionUnlock();
 
 
-#ifdef _LINUX
+#ifdef linux__
 	pthread_mutex_t & GetMutex();
 #endif
 
@@ -47,7 +47,7 @@ protected:
 	void DeleteMutexLock();
 
 private:
-#ifdef _LINUX
+#ifdef linux__
 	pthread_mutex_t   mutex_lock;
 #endif
 
@@ -60,7 +60,7 @@ class ThreadEvent
 {
 public:
 
-#ifdef _LINUX
+#ifdef linux__
 	ThreadEvent() 
 	{
 		pthread_cond_init(&m_event, NULL);
@@ -125,7 +125,7 @@ public:
 		m_tlock.SectionUnlock();
 	}
 
-#ifdef _LINUX
+#ifdef linux__
 	T remove() {
 		m_tlock.SectionLock();
 		while (m_queue.size() == 0) {
