@@ -737,3 +737,4 @@ c++/src/objects/blast/blastclient.cpp
 c++/src/algo/blast/dbindex_search/Makefile.in
 c++/include/objects/blast/blastclient.hpp
 shell/m.ls.log
+.VSCodeCounter
