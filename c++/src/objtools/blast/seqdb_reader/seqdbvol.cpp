@@ -53,7 +53,7 @@ static char const rcsid[] = "$Id: seqdbvol.cpp 389295 2013-02-14 18:44:05Z rafan
 
 //////////////////////////////////////////////////////////////////////////
 //added by kyzhao for gpu blastn 2013.04.30
-#include <tmmintrin.h>
+#include <util/bitset/wrapper_tmmintrin.h>
 #include <emmintrin.h>
 #include <algo/blast/gpu_blast/gpu_blastn_config.hpp>
 
