@@ -1418,7 +1418,7 @@ DEFINE_STATIC_ARRAY_MAP(TStaticRemarkSet, sc_Remarks, sc_RemarkText);
 
 void CReferenceItem::x_GatherRemark(CBioseqContext& ctx)
 {
-    static const char* const kDoiLink = "http://dx.doi.org/";
+    static const char* const kDoiLink = "https://doi.org/";
 
     list<string> l;
 
