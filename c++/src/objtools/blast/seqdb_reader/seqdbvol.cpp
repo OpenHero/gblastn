@@ -53,10 +53,24 @@ static char const rcsid[] = "$Id: seqdbvol.cpp 389295 2013-02-14 18:44:05Z rafan
 
 //////////////////////////////////////////////////////////////////////////
 //added by kyzhao for gpu blastn 2013.04.30
-#include <util/bitset/wrapper_tmmintrin.h>
+//#include <util/bitset/wrapper_tmmintrin.h>
 #include <emmintrin.h>
 #include <algo/blast/gpu_blast/gpu_blastn_config.hpp>
 
+#include <altivec.h>
+
+/* We need definitions from the SSE header files.  */
+#include <pmmintrin.h>
+
+extern __inline __m128i
+__attribute__((__gnu_inline__, __always_inline__, __artificial__))
+_mm_shuffle_epi8 (__m128i __A, __m128i __B)
+{
+  const __v16qi __zero = { 0 };
+  __vector __bool char __select = vec_cmplt ((__v16qi) __B, __zero);
+  __v16qi __C = vec_perm ((__v16qi) __A, (__v16qi) __A, (__v16qu) __B);
+  return (__m128i) vec_sel (__C, __zero, __select);
+}
 
 BEGIN_NCBI_SCOPE
 
