@@ -52,13 +52,13 @@ static char const rcsid[] = "$Id: seqdbvol.cpp 389295 2013-02-14 18:44:05Z rafan
 #include <sstream>
 
 //////////////////////////////////////////////////////////////////////////
-//added by kyzhao for gpu blastn 2013.04.30
-//#include <util/bitset/wrapper_tmmintrin.h>
-#include <emmintrin.h>
+//added by kyzhao for gpu blastn 2020.01.25
 #include <algo/blast/gpu_blast/gpu_blastn_config.hpp>
 
+#if OPT_TRACEBACK
+//#include <util/bitset/wrapper_tmmintrin.h>
+#include <emmintrin.h>
 #include <altivec.h>
-
 /* We need definitions from the SSE header files.  */
 #include <pmmintrin.h>
 
@@ -71,8 +71,10 @@ _mm_shuffle_epi8 (__m128i __A, __m128i __B)
   __v16qi __C = vec_perm ((__v16qi) __A, (__v16qi) __A, (__v16qu) __B);
   return (__m128i) vec_sel (__C, __zero, __select);
 }
+#endif // OPT_TRACEBACK
 
 BEGIN_NCBI_SCOPE
+
 
 int CSeqDBGiIndex::GetSeqGI(TOid             oid,
                             CSeqDBLockHold & locked) 
@@ -664,7 +666,7 @@ static void
 	for(int i = range.begin; i < range.end; i++)  
 		buf[i] = SeqDB_ncbina8_to_blastna8[ buf[i] & 0xF ];
 }
-#endif
+#endif // OPT_TRACEBACK
 
 //--------------------
 // NEW (long) version

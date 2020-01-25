@@ -1263,7 +1263,7 @@ int CBlastnApp::Method3(const CBlastOptions& opt)
 #ifndef SKIP_DOXYGEN_PROCESSING
 int main(int argc, const char* argv[] /*, const char* envp[]*/)
 {
-#if (!OPT_TRACEBACK)
+#if (!OPT_TRACEBACK && LOGFILE)
 	string logfilename = argv[2];
 	logfilename = "cpu_"+logfilename +".log.txt";
 
