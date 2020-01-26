@@ -25,6 +25,9 @@
 #ifndef TMMINTRIN_H_
 #define TMMINTRIN_H_
 
+#include <algo/blast/gpu_blast/gpu_blastn_config.hpp>
+
+#if OPT_TRACEBACK
 #if defined(__linux__) && defined(__ppc64__)
 
 #include <altivec.h>
@@ -491,5 +494,5 @@ _mm_mulhrs_pi16 (__m64 __A, __m64 __B)
 #else
 #include_next <tmmintrin.h>
 #endif /* defined(__linux__) && defined(__ppc64__) */
-
+#endif // OPT_TRACEBACK
 #endif /* TMMINTRIN_H_ */
