@@ -43,3 +43,6 @@ Please follow the example in shell directory.
 
 ## More details
 https://www.comp.hkbu.edu.hk/~chxw/software/G-BLASTN.html
+
+## License
+See the [LICENSE](LICENSE.md) file for license rights and limitations (MIT).
