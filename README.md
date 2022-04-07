@@ -30,7 +30,7 @@ This project is supported by grant FRG2/11-12/158 from Hong Kong Baptist Univers
 ## News v1.2: 
 1.2 [October 2019] version release is built on NCBI-BLAST 2.2.28.
 
-Merge with ncbi-blast-2.2.28+.src support CUDA 10.1 Ubuntu 18.x GCC 7.x
+Merged with ncbi-blast-2.2.28+.src support CUDA 10.1 Ubuntu 18.x GCC 7.x
 
 ### Install
 ./configure --without-debug --with-mt --without-sybase --without-fastcgi --without-sssdb --without-sss --without-geo --without-sp --without-orbacus --without-boost
