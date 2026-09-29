@@ -68,7 +68,13 @@ CBlastOptionsLocal::CBlastOptionsLocal()
     m_Program = eBlastNotSet;
     m_UseMBIndex = false;
     m_ForceMBIndex = false;
+    m_OldStyleMBIndex = false;
     m_MBIndexLoaded = false;
+    m_method = 1;
+    m_UseGpu = false;
+    m_GpuId = -1;
+    m_PrepareNum = m_PrelimNum = m_TraceNum = m_PrintNum = 1;
+    m_Converted = false;
 }
 
 CBlastOptionsLocal::~CBlastOptionsLocal()
@@ -103,6 +109,8 @@ void CBlastOptionsLocal::x_DoDeepCopy(const CBlastOptionsLocal& optsLocal)
                             optsLocal.m_HitSaveOpts);
         x_Copy_CPSIBlastOptions(m_PSIBlastOpts,
                             optsLocal.m_PSIBlastOpts);
+        x_Copy_CPSIBlastOptions(m_DeltaBlastOpts,
+                            optsLocal.m_DeltaBlastOpts);
         x_Copy_CBlastDatabaseOptions(m_DbOpts,
                             optsLocal.m_DbOpts);
         x_Copy_CBlastScoringOptions(m_ScoringOpts,
@@ -114,6 +122,16 @@ void CBlastOptionsLocal::x_DoDeepCopy(const CBlastOptionsLocal& optsLocal)
         m_Program = optsLocal.m_Program;
         m_UseMBIndex = optsLocal.m_UseMBIndex;
         m_ForceMBIndex = optsLocal.m_ForceMBIndex;
+        m_OldStyleMBIndex = optsLocal.m_OldStyleMBIndex;
+        m_method = optsLocal.m_method;
+        m_QueryList = optsLocal.m_QueryList;
+        m_UseGpu = optsLocal.m_UseGpu;
+        m_GpuId = optsLocal.m_GpuId;
+        m_PrepareNum = optsLocal.m_PrepareNum;
+        m_PrelimNum = optsLocal.m_PrelimNum;
+        m_TraceNum = optsLocal.m_TraceNum;
+        m_PrintNum = optsLocal.m_PrintNum;
+        m_Converted = optsLocal.m_Converted;
         m_MBIndexLoaded = optsLocal.m_MBIndexLoaded;
         m_MBIndexName = optsLocal.m_MBIndexName;
     }

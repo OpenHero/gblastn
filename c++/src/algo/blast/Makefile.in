@@ -3,8 +3,8 @@
 # Meta-makefile ("BLAST" project)
 #################################
 
-SUB_PROJ = composition_adjustment core dbindex dbindex_search api format blastinput \
-           igblast gumbel_params unit_tests gpu_blast
+SUB_PROJ = gpu_blast composition_adjustment core dbindex dbindex_search api format blastinput \
+           igblast gumbel_params unit_tests
 
 WATCHERS = camacho madden
 

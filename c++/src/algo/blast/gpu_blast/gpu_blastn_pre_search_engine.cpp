@@ -59,6 +59,8 @@ static char const rcsid[] =
 #endif /* SKIP_DOXYGEN_PROCESSING */
 
 #include <algo/blast/core/blast_engine.h>
+#include <exception>
+#include <stdexcept>
 #include <algo/blast/core/blast_util.h>
 #include <algo/blast/core/blast_aalookup.h>
 #include <algo/blast/core/blast_aascan.h>
@@ -77,7 +79,7 @@ static char const rcsid[] =
 #include <algo/blast/core/blast_traceback.h>
 #include <algo/blast/core/mb_indexed_lookup.h>
 #include <algo/blast/core/gencode_singleton.h>
-#include "../src/algo/blast/core/blast_gapalign_priv.h"
+#include <algo/blast/core/blast_gapalign_priv.h>
 
 #include <algo/blast/gpu_blast/gpu_blastn_na_ungapped_v3.h>
 #include <algo/blast/gpu_blast/gpu_logfile.h>
@@ -103,6 +105,7 @@ typedef struct BlastCoreAuxStruct {
     BlastInitHitList* init_hitlist; /**< Placeholder for HSPs after 
                                         ungapped extension */
     BlastOffsetPair* offset_pairs; /**< Array of offset pairs for initial seeds. */
+    Int4 offset_capacity; /**< Actual allocation passed to scanner. */
     Uint1* translation_buffer; /**< Placeholder for translated subject
                                    sequences */
     Uint1* translation_table; /**< Translation table for forward strand */
@@ -431,6 +434,14 @@ s_BlastSearchEngineOneContext(EBlastProgramType program_number,
     Int2 status = 0; /* return value */
     BlastHSPList* combined_hsp_list = NULL;
     BlastHSPList* hsp_list = NULL;
+    struct HspResources {
+        BlastHSPList*& current;
+        BlastHSPList*& combined;
+        ~HspResources() {
+            if (current) current = Blast_HSPListFree(current);
+            if (combined) combined = Blast_HSPListFree(combined);
+        }
+    } hsp_resources = {hsp_list, combined_hsp_list};
     BlastInitHitList* init_hitlist = aux_struct->init_hitlist;
     BlastScoringOptions* score_options = score_params->options;
     BlastUngappedStats* ungapped_stats = NULL;
@@ -443,7 +454,6 @@ s_BlastSearchEngineOneContext(EBlastProgramType program_number,
     const Boolean kNucleotide = (program_number == eBlastTypeBlastn ||
        program_number == eBlastTypePhiBlastn);
     const int kHspNumMax = BlastHspNumMax(score_options->gapped_calculation, hit_params->options);
-    const int kScanSubjectOffsetArraySize = GetOffsetArraySize(lookup);
     Int4 overlap;
 
     SubjectSplitStruct backup; 
@@ -455,6 +465,11 @@ s_BlastSearchEngineOneContext(EBlastProgramType program_number,
     }
 
     s_BackupSubject(subject, &backup);
+    struct SubjectRestoreGuard {
+        BLAST_SequenceBlk* subject;
+        SubjectSplitStruct* backup;
+        ~SubjectRestoreGuard() { s_RestoreSubject(subject, backup); }
+    } subject_guard = {subject, &backup};
 
     while (TRUE) {
         status = s_GetNextSubjectChunk(subject, &backup, kNucleotide);
@@ -473,7 +488,7 @@ s_BlastSearchEngineOneContext(EBlastProgramType program_number,
             aux_struct->WordFinder(subject, query, query_info, lookup, matrix, 
                                    word_params, aux_struct->ewp, 
                                    aux_struct->offset_pairs, 
-                                   kScanSubjectOffsetArraySize,
+                                   aux_struct->offset_capacity,
                                    init_hitlist, ungapped_stats);
 
             if (init_hitlist->total == 0) continue;
@@ -545,6 +560,7 @@ s_BlastSearchEngineOneContext(EBlastProgramType program_number,
     hsp_list = Blast_HSPListFree(hsp_list);  /* In case this was not freed in above loop. */
 
     *hsp_list_out_ptr = combined_hsp_list;
+    combined_hsp_list = NULL;
 
     return status;
 }
@@ -894,17 +910,25 @@ s_gpu_BlastSetUpAuxStructures(bool is_gpu,
                          lookup_wrap->lut_type == ePhiNaLookupTable);
     Boolean smith_waterman = 
                  (ext_options->ePrelimGapExt == eSmithWatermanScoreOnly);
+    if (is_gpu) {
+        Int4 longest = 0;
+        if (lookup_wrap->lut_type == eSmallNaLookupTable)
+            longest = static_cast<BlastSmallNaLookupTable*>(lookup_wrap->lut)->longest_chain;
+        else if (lookup_wrap->lut_type == eMBLookupTable)
+            longest = static_cast<BlastMBLookupTable*>(lookup_wrap->lut)->longest_chain;
+        if (longest < 0 || longest > 1024 * 1024)
+            throw std::runtime_error("G-BLASTN lookup chain exceeds bounded GPU hit capacity");
+    }
     Int4 offset_array_size = GetOffsetArraySize(lookup_wrap);
 
-	if (is_gpu)
-	{
-		offset_array_size = BlastSeqSrcGetMaxSeqLen(seq_src)/4;
-	}
+    // Chunked GPU scans use the same bounded hit buffer as the CPU scanner.
+    // Do not allocate memory proportional to the largest database subject.
 
     ASSERT(seq_src);
 
     *aux_struct_ptr = aux_struct = (BlastCoreAuxStruct*)
       calloc(1, sizeof(BlastCoreAuxStruct));
+    if (!aux_struct) return -1;
 
     if ((status = BlastExtendWordNew(query->length, word_params, 
                                     &aux_struct->ewp)) != 0)
@@ -939,7 +963,9 @@ s_gpu_BlastSetUpAuxStructures(bool is_gpu,
     }
     
     aux_struct->offset_pairs = 
-      (BlastOffsetPair*) malloc(offset_array_size * sizeof(BlastOffsetPair));
+      (BlastOffsetPair*) malloc(size_t(offset_array_size) * sizeof(BlastOffsetPair));
+    aux_struct->offset_capacity = offset_array_size;
+    if (!aux_struct->offset_pairs) return -1;
     
     aux_struct->init_hitlist = BLAST_InitHitListNew();
     /* Pick which gapped alignment algorithm to use. */
@@ -1141,7 +1167,8 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
 {
     BlastCoreAuxStruct* aux_struct = NULL;
     BlastHSPList* hsp_list = NULL; 
-    BlastSeqSrcGetSeqArg seq_arg;
+    BlastSeqSrcGetSeqArg seq_arg = {};
+    bool subject_acquired = false;
     Int2 status = 0;
     Int8 db_length = 0;
     const BlastScoringOptions* score_options = score_params->options;
@@ -1150,13 +1177,31 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
     BlastInitialWordParameters* word_params = NULL;
     Boolean gapped_calculation = score_options->gapped_calculation;
     BlastScoreBlk* sbp = gap_align->sbp;
-    BlastSeqSrcIterator* itr;
+    BlastSeqSrcIterator* itr = NULL;
     const Boolean kNucleotide = (program_number == eBlastTypeBlastn ||
                                 program_number == eBlastTypePhiBlastn);
 
     T_MB_IdbCheckOid check_index_oid = 
         (T_MB_IdbCheckOid)lookup_wrap->check_index_oid;
     Int4 last_vol_idx = LAST_VOL_IDX_INIT;
+
+    struct PreliminaryResources {
+        BlastCoreAuxStruct*& aux;
+        BlastInitialWordParameters*& words;
+        BlastHSPList*& hsps;
+        BlastSeqSrcIterator*& iterator;
+        BlastSeqSrcGetSeqArg& sequence;
+        bool& acquired;
+        const BlastSeqSrc* source;
+        ~PreliminaryResources() {
+            if (acquired) BlastSeqSrcReleaseSequence(source, &sequence);
+            if (sequence.seq) sequence.seq = BlastSequenceBlkFree(sequence.seq);
+            if (iterator) iterator = BlastSeqSrcIteratorFree(iterator);
+            if (hsps) hsps = Blast_HSPListFree(hsps);
+            if (words) words = BlastInitialWordParametersFree(words);
+            if (aux) aux = s_BlastCoreAuxStructFree(aux);
+        }
+    } resources = {aux_struct, word_params, hsp_list, itr, seq_arg, subject_acquired, seq_src};
 
     BlastInitialWordParametersNew(program_number, word_options, 
       hit_params, lookup_wrap, sbp, query_info, 
@@ -1226,7 +1271,7 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
             ext_params, gap_align, hit_params, hsp_stream, diagnostics,
             interrupt_search, progress_info);
        word_params = BlastInitialWordParametersFree(word_params);
-       s_BlastCoreAuxStructFree(aux_struct);
+       aux_struct = s_BlastCoreAuxStructFree(aux_struct);
        return status;
     }
 
@@ -1268,6 +1313,7 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
 
        if (BlastSeqSrcGetSequence(seq_src, &seq_arg) < 0)
            continue;
+       subject_acquired = true;
 
        if (db_length == 0) {
            /* This is not a database search, hence need to recalculate and save
@@ -1282,6 +1328,17 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
       }
 
       stat_length = seq_arg.seq->length; 
+      if (getenv("GBLASTN_GPU_TRACE") && getenv("GBLASTN_GPU_TRACE")[0] == '1') {
+          const bool small = lookup_wrap->lut_type == eSmallNaLookupTable;
+          const bool mb = lookup_wrap->lut_type == eMBLookupTable;
+          if (small || mb) {
+              const bool cuda = is_gpu_thread && stat_length > (small ? 500000 : 10000)
+                  && seq_arg.seq->mask_type == eNoSubjMasking;
+              fprintf(stderr, "GBLASTN_DISPATCH branch=%s subject_length=%d backend=%s\n",
+                  small ? "small" : "megablast", stat_length, cuda ? "cuda" : "cpu");
+          }
+      }
+
 
 	  //printf("%d\t%d\n",seq_arg.oid, stat_length);// <<endl;
 	  //////////////////////////////////////////////////////////////////////////
@@ -1291,7 +1348,7 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
 		  if (lookup_wrap->lut_type == eSmallNaLookupTable) 
 		  {	
 			  BlastSmallNaLookupTable *lookup = (BlastSmallNaLookupTable*)lookup_wrap->lut;
-			  if (stat_length > 500000)
+			  if (stat_length > 500000 && seq_arg.seq->mask_type == eNoSubjMasking)
 			  {
 				  lookup->scansub_callback = new_lp_cb;
 				  lookup->extend_callback = new_lp_et;
@@ -1306,7 +1363,7 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
 		  {
 			  BlastMBLookupTable *mb_lt = (BlastMBLookupTable*)lookup_wrap->lut;
 			  mb_lt->lut_word_length;	
-			  if (stat_length > 10000)
+			  if (stat_length > 10000 && seq_arg.seq->mask_type == eNoSubjMasking)
 			  {
 				  mb_lt->scansub_callback = new_lp_cb;
 				  mb_lt->extend_callback = new_lp_et;
@@ -1374,6 +1431,7 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
                   }
          
                   BlastSeqSrcReleaseSequence(seq_src, &seq_arg);
+      subject_acquired = false;
                   return status;
                }
                /* Relink HSPs if sum statistics is used, because scores might
@@ -1432,6 +1490,7 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
       }
       
       BlastSeqSrcReleaseSequence(seq_src, &seq_arg);
+      subject_acquired = false;
 
       /* check for interrupt */
       if (interrupt_search && (*interrupt_search)(progress_info) == TRUE) {
@@ -1449,7 +1508,7 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
     }
 
     hsp_list = Blast_HSPListFree(hsp_list);  /* in case we were interrupted */
-    BlastSequenceBlkFree(seq_arg.seq);
+    seq_arg.seq = BlastSequenceBlkFree(seq_arg.seq);
     itr = BlastSeqSrcIteratorFree(itr);
 
     /* Fill the cutoff values in the diagnostics structure */
@@ -1459,7 +1518,7 @@ BLAST_PreliminarySearchEngine(bool is_use_gpu,
     }
 
     word_params = BlastInitialWordParametersFree(word_params);
-    s_BlastCoreAuxStructFree(aux_struct);
+    aux_struct = s_BlastCoreAuxStructFree(aux_struct);
     return status;
 }
 
@@ -1496,7 +1555,24 @@ Blast_gpu_RunPreliminarySearchWithInterrupt(EBlastProgramType program,
       it to the engine and have a lot of mutex contention. */
     BlastDiagnostics* local_diagnostics = Blast_DiagnosticsInit();
 
-    if ((status = 
+    struct SearchResources {
+        BlastDiagnostics*& diagnostics;
+        BlastGapAlignStruct*& gap;
+        BlastScoringParameters*& score;
+        BlastHitSavingParameters*& hit;
+        BlastExtensionParameters*& extension;
+        BlastEffectiveLengthsParameters*& lengths;
+        ~SearchResources() {
+            if (gap) { gap->sbp = NULL; gap = BLAST_GapAlignStructFree(gap); }
+            if (score) score = BlastScoringParametersFree(score);
+            if (hit) hit = BlastHitSavingParametersFree(hit);
+            if (extension) extension = BlastExtensionParametersFree(extension);
+            if (lengths) lengths = BlastEffectiveLengthsParametersFree(lengths);
+            if (diagnostics) diagnostics = Blast_DiagnosticsFree(diagnostics);
+        }
+    } resources = {local_diagnostics, gap_align, score_params, hit_params, ext_params, eff_len_params};
+
+    if ((status =
         BLAST_GapAlignSetUp(program, seq_src, score_options, 
                             eff_len_options, ext_options, hit_options, 
                             query_info, sbp, &score_params, &ext_params, 
@@ -1511,12 +1587,42 @@ Blast_gpu_RunPreliminarySearchWithInterrupt(EBlastProgramType program,
 	
 	//cout << "Thread: " << GetCurrentThreadId() << ": gpu_id :" << gpu_id << endl;
 	//cout << "gpu_id :" << gpu_id << endl;
-	LookupTableWrap* p_lookup_wrap_back = lookup_wrap;
+    // Return the GPU lease and all per-query resources on success, status
+    // failure, or a CUDA exception. A shallow lookup clone owns only its shell.
+    struct GpuLeaseGuard {
+        int id;
+        LookupTableWrap* copy;
+        explicit GpuLeaseGuard(int value) : id(value), copy(NULL) {}
+        void release() {
+            if (id < 0) return;
+            if (copy) gpu_ReleaseQueryMemory(copy);
+            gpu_ReleaseDBMemory();
+            if (copy) {
+                if (copy->lut_type == eSmallNaLookupTable)
+                    delete static_cast<BlastSmallNaLookupTable*>(copy->lut);
+                else if (copy->lut_type == eMBLookupTable)
+                    delete static_cast<BlastMBLookupTable*>(copy->lut);
+                delete copy; copy = NULL;
+            }
+            BlastMGPUUtil.ThreadReplaceGPU();
+            id = -1;
+        }
+        ~GpuLeaseGuard() {
+            try { release(); }
+            catch (const std::exception& e) {
+                fprintf(stderr, "G-BLASTN GPU cleanup: %s\n", e.what());
+                try { BlastMGPUUtil.ThreadReplaceGPU(); } catch (...) {}
+            }
+        }
+    } gpu_lease(gpu_id);
+    LookupTableWrap* p_lookup_wrap_back = lookup_wrap;
 	if (gpu_id >= 0)
 	{
 		LookupTableWrap* p_lookup_wrap = new LookupTableWrap(*lookup_wrap);
 		lookup_wrap = p_lookup_wrap;
-		GpuLookUpInit(lookup_wrap);
+        try { GpuLookUpInit(lookup_wrap); }
+        catch (...) { delete lookup_wrap; throw; }
+        gpu_lease.copy = lookup_wrap;
 		is_gpu_thread = true;
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1537,10 +1643,7 @@ Blast_gpu_RunPreliminarySearchWithInterrupt(EBlastProgramType program,
 	//////////////////////////////////////////////////////////////////////////
 	if (gpu_id >= 0)
 	{
-		gpu_ReleaseQueryMemory(lookup_wrap);
-		BlastMGPUUtil.ThreadReplaceGPU();
-		delete lookup_wrap->lut;
-		delete lookup_wrap;
+        gpu_lease.release();
 		lookup_wrap = p_lookup_wrap_back;
 	}
 	//////////////////////////////////////////////////////////////////////////
@@ -1557,7 +1660,7 @@ Blast_gpu_RunPreliminarySearchWithInterrupt(EBlastProgramType program,
     
     /* Now update the input diagonistics structure. */
     Blast_DiagnosticsUpdate(diagnostics, local_diagnostics);
-    Blast_DiagnosticsFree(local_diagnostics);
+    local_diagnostics = Blast_DiagnosticsFree(local_diagnostics);
 
     return status;
 }

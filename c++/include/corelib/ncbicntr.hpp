@@ -159,7 +159,9 @@ private:
 inline
 CAtomicCounter::TValue CAtomicCounter::Get(void) const THROWS_NONE
 {
-#ifdef NCBI_COUNTER_RESERVED_VALUE
+#if defined(NCBI_COUNTER_USE_BUILTINS)
+    return __atomic_load_n(&m_Value, __ATOMIC_SEQ_CST);
+#elif defined(NCBI_COUNTER_RESERVED_VALUE)
     TValue value = m_Value;
     NCBI_SCHED_SPIN_INIT();
     while (value == NCBI_COUNTER_RESERVED_VALUE) {
@@ -176,7 +178,11 @@ CAtomicCounter::TValue CAtomicCounter::Get(void) const THROWS_NONE
 inline
 void CAtomicCounter::Set(CAtomicCounter::TValue new_value) THROWS_NONE
 {
+#ifdef NCBI_COUNTER_USE_BUILTINS
+    __atomic_store_n(&m_Value, new_value, __ATOMIC_SEQ_CST);
+#else
     m_Value = new_value;
+#endif
 }
 
 

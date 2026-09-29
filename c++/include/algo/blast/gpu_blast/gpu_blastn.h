@@ -4,9 +4,6 @@
 #include <algo/blast/gpu_blast/gpu_blastn_config.hpp>
 #include <algo/blast/core/blast_hspstream.h>
 //#include <algo/blast/gpu_blast/gpu_blast_multi_gpu_utils.hpp>
-#include <algo/blast/gpu_blast/work_thread_base.hpp>
-#include <algo/blast/gpu_blast/thread_work_queue.hpp>
-#include <algo/blast/gpu_blast/work_thread.hpp>
 
 /** Same as above, with support for user interrupt function
  * @param program_number Type of BLAST program [in]

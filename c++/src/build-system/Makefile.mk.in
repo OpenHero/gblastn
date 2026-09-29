@@ -38,6 +38,15 @@ runpath     = @runpath@
 # Destination root for exported headers (overridden by import_project.sh)
 incdest     = $(incdir)
 
+# CUDA is a toolkit dependency, not a bundled copy of libcudart. Override these
+# at make time for non-default installations; the build wrapper exports them.
+CUDA_HOME ?= /usr/local/cuda
+NVCC ?= $(CUDA_HOME)/bin/nvcc
+CUDA_ARCH ?= 110
+CUDA_LIBDIR ?= $(firstword $(wildcard $(CUDA_HOME)/targets/sbsa-linux/lib $(CUDA_HOME)/targets/aarch64-linux/lib $(CUDA_HOME)/targets/x86_64-linux/lib $(CUDA_HOME)/lib64 $(CUDA_HOME)/lib))
+CUDA_LDFLAGS = -L$(CUDA_LIBDIR)
+CUDA_LIBS = -lcudart
+
 ### Optional top-level project groups
 
 OPT_GROUPS = @OPT_GROUPS@
@@ -88,7 +97,7 @@ CONF_C_LINK = @C_LINK@
 CONF_STRIP  = @STRIP@
 
 CONF_CFLAGS   = @CFLAGS@
-CONF_CXXFLAGS = @CXXFLAGS@ -mssse3
+CONF_CXXFLAGS = @CXXFLAGS@
 CONF_CPPFLAGS = @CPPFLAGS@ $(STD_INCLUDE)
 CONF_DEPFLAGS = @DEPFLAGS@
 CONF_DEPFLAGS_POST = @DEPFLAGS_POST@

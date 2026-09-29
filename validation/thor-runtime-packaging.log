@@ -1,0 +1,72 @@
+[1/4] STEP 1/2: FROM docker.io/nvidia/cuda:13.2.1-devel-ubuntu24.04@sha256:44a9504c6dfb50b1241464241b02a93871928f373de6f5a644cf5fe9f080aa63 AS devel
+[1/4] STEP 2/2: RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     build-essential gcc-13 g++-13 perl python3 zlib1g-dev libbz2-dev ca-certificates     && rm -rf /var/lib/apt/lists/*
+--> Using cache e91465ebcf592b812f777d4e5f03eae9deced8fe438131d22726c5e14f71db5e
+--> e91465ebcf59
+[4/4] STEP 1/9: FROM docker.io/nvidia/cuda:13.2.1-runtime-ubuntu24.04@sha256:4c17c2e7474ca1d470428b25e87e95756f51e7da3b663859894a03bc5a7ebdae AS runtime
+[4/4] STEP 2/9: ENTRYPOINT []
+--> Using cache 8bf8c489a4acde4d1b65e56927168f71d6f0c3bdeaa42e37b59b416f18582a9e
+--> 8bf8c489a4ac
+[4/4] STEP 3/9: RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     libstdc++6 libgomp1 zlib1g libbz2-1.0 python3 ca-certificates     && rm -rf /var/lib/apt/lists/*
+--> Using cache db5d4b891cada00e1cdadf3e0e943846a6892bc79f42b30fc1fbaf76b7716429
+--> db5d4b891cad
+[4/4] STEP 4/9: COPY --from=build /opt/gblastn /opt/gblastn
+[2/4] STEP 1/10: FROM e91465ebcf592b812f777d4e5f03eae9deced8fe438131d22726c5e14f71db5e AS build
+[2/4] STEP 2/10: ARG JOBS=4
+--> Using cache 7ef812af27ca308e9627a0e38edae00d096876f456f1b97e626b491dcdb444a0
+--> 7ef812af27ca
+[2/4] STEP 3/10: ARG CUDA_ARCH=110
+--> Using cache c0729ff44cb579f1473552b9017dd82aaebe4ebfb211f590cfe4c94bdbe526a6
+--> c0729ff44cb5
+[2/4] STEP 4/10: ARG CC=gcc-13
+--> Using cache 748ad70d273a09e7965b8fae41bb66e057413b1229fb3bf749d43394443b1701
+--> 748ad70d273a
+[2/4] STEP 5/10: ARG CXX=g++-13
+--> Using cache 4b5cbb49d9c655153e9dffd25a74f27de118f674972bb9618af7dd96d9a38c3d
+--> 4b5cbb49d9c6
+[2/4] STEP 6/10: WORKDIR /src/gblastn
+--> Using cache 1aa9c4955afa851a19037bf0293b9ebeb5c050d6863973fc23443bfb55779f72
+--> 1aa9c4955afa
+[2/4] STEP 7/10: COPY c++ ./c++
+--> Using cache 650602ff5086db601daa0c7d67320233d213b892ea09cf9f18b8c491b3383083
+--> 650602ff5086
+[2/4] STEP 8/10: COPY scripts/build.sh ./scripts/build.sh
+--> Using cache fca7b000a2ed42a26f82b6c38f5b19cc435b72508e049da559e27de94f743d57
+--> fca7b000a2ed
+[2/4] STEP 9/10: COPY LICENSE.md ./LICENSE.md
+--> Using cache 5e44c3abf0f73af3167c741efa3228583775ce0313ee8b87e95dd7b443ce1b88
+--> 5e44c3abf0f7
+[2/4] STEP 10/10: RUN JOBS=${JOBS} CUDA_ARCH=${CUDA_ARCH} CC=${CC} CXX=${CXX}     BUILD_ROOT=/build/toolkit PREFIX=/opt/gblastn ./scripts/build.sh
+--> Using cache f744a9d789c9f8a75e8d57c63403fde4aa84646baec6786336ec09626b2b8c9a
+--> f744a9d789c9
+--> Using cache f1817fc80a8d3adf97e1b6b8fe37f41b751e249251e182db0e209d7bfdf9d51c
+--> f1817fc80a8d
+[4/4] STEP 5/9: COPY tests /opt/gblastn/tests
+--> 0d7f480db7f2
+[4/4] STEP 6/9: ENV PATH=/opt/gblastn/bin:${PATH}
+--> 49a3d1e6a816
+[4/4] STEP 7/9: RUN for bin in blastn makeblastdb blastdbcmd; do         ldd /opt/gblastn/bin/$bin >/tmp/ldd.txt && ! grep -q 'not found' /tmp/ldd.txt || exit 1;     done && rm /tmp/ldd.txt     && blastn -version && makeblastdb -version && blastdbcmd -version
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_CHOWN: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_DAC_OVERRIDE: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_FOWNER: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_FSETID: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_KILL: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_NET_BIND_SERVICE: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_SETFCAP: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_SETGID: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_SETPCAP: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_SETUID: operation not permitted"
+time="2026-09-29T12:48:08-04:00" level=warning msg="can't raise ambient capability CAP_SYS_CHROOT: operation not permitted"
+blastn: 2.2.28+
+Package: blast 2.2.28, build Sep 29 2026 16:43:55
+makeblastdb: 2.2.28+
+Package: blast 2.2.28, build Sep 29 2026 16:43:55
+blastdbcmd: 2.2.28+
+Package: blast 2.2.28, build Sep 29 2026 16:43:55
+--> 2619fd131c0e
+[4/4] STEP 8/9: WORKDIR /work
+--> dbcf08f74e1a
+[4/4] STEP 9/9: CMD ["blastn", "-help"]
+[4/4] COMMIT gblastn:thor
+--> d2e3a5ec749f
+Successfully tagged localhost/gblastn:thor
+d2e3a5ec749f912494e4590feafab3aabf27b6cc6ccbfc972d8ec37075f7c992

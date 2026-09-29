@@ -1,10 +1,28 @@
 #  G-BLASTN  
 
 G-BLASTN is a GPU-accelerated nucleotide alignment tool based on the widely used NCBI-BLAST. 
-G-BLASTN can produce exactly the same results as NCBI-BLAST, and it also has very similar user 
-commands. It also supports a pipeline mode, which can fully utilize the GPU and CPU resources 
-when handling a batch of queries. G-BLASTN supports megablast and blastn mode. The discontiguous
-megablast mode is currently not supported.
+This repository retains the **NCBI BLAST 2.2.28+** algorithmic baseline and real CUDA
+scan/mini-extension kernels. It supports `blastn`, contiguous `megablast`, and bounded
+query pipelines. Discontiguous megablast GPU execution is unsupported.
+
+The Thor port targets Linux ARM64, Ubuntu 24.04, CUDA 13.x and **sm_110**. See the
+[build, container and validation guide](docs/THOR.md) for exact commands, CPU/GPU
+behavior, v4 database compatibility, pipeline modes and limitations, and the
+[compatibility and test record](docs/VALIDATION.md) for measured validation status.
+
+```sh
+export CONTAINER_ENGINE=podman
+export OCI_RUNTIME=crun # A user-local executable path also works.
+JOBS=8 ./scripts/build-container.sh
+GPU=0 ./scripts/run-container.sh blastn -version
+```
+
+Unset `CONTAINER_ENGINE` to use Docker instead.
+
+The multi-stage image includes matching `blastn`, `makeblastdb`, and `blastdbcmd`.
+CUDA base image digests and ARM64 manifests are recorded in
+[container/images.lock.json](container/images.lock.json). Build success alone is
+not GPU correctness evidence; the acceptance suite requires completed search kernels.
 
 Citation:
 
@@ -32,13 +50,9 @@ This project is supported by grant FRG2/11-12/158 from Hong Kong Baptist Univers
 
 Merged with ncbi-blast-2.2.28+.src support CUDA 10.1 Ubuntu 18.x GCC 7.x
 
-### Install
-./configure --without-debug --with-mt --without-sybase --without-fastcgi --without-sssdb --without-sss --without-geo --without-sp --without-orbacus --without-boost
-
-make 
-
-### User guide
-Please follow the example in shell directory.
+The original 2019 CUDA 10.1/GCC 7 installation instructions have been superseded by
+[scripts/build.sh](scripts/build.sh) and the [Thor guide](docs/THOR.md).
+Portable examples are in [shell/](shell/).
 
 
 ## More details

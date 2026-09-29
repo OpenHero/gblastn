@@ -29,7 +29,7 @@ Int4
 	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
 	Int4* scan_range);
 Int4 
-	s_gpu_BlastSmallExtend_v3(BlastOffsetPair * offset_pairs, Int4 num_hits,
+	s_gpu_BlastSmallExtend_v3(const BlastOffsetPair * offset_pairs, Int4 num_hits,
 	const BlastInitialWordParameters * word_params,
 	LookupTableWrap * lookup_wrap,
 	BLAST_SequenceBlk * query,
@@ -50,7 +50,7 @@ Int4
 	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
 	Int4* scan_range);
 Int4 
-	s_gpu_BlastSmallNaExtendAlignedOneByte(BlastOffsetPair * offset_pairs, Int4 num_hits,
+	s_gpu_BlastSmallNaExtendAlignedOneByte(const BlastOffsetPair * offset_pairs, Int4 num_hits,
 	const BlastInitialWordParameters * word_params,
 	LookupTableWrap * lookup_wrap,
 	BLAST_SequenceBlk * query,
@@ -100,7 +100,7 @@ Int4 s_gpu_MB_DiscWordScanSubject_11_18_1(
 ///MiniExtend
 //////////////////////////////////////////////////////////////////////////
 Int4 
-	s_gpu_BlastNaExtend_Opt_v3(BlastOffsetPair * offset_pairs, Int4 num_hits,
+	s_gpu_BlastNaExtend_Opt_v3(const BlastOffsetPair * offset_pairs, Int4 num_hits,
 	const BlastInitialWordParameters * word_params,
 	LookupTableWrap * lookup_wrap,
 	BLAST_SequenceBlk * query,
@@ -111,7 +111,7 @@ Int4
 	Uint4 s_range );
 
 Int4
-	s_new_BlastNaExtendDirect(BlastOffsetPair * offset_pairs, Int4 num_hits,
+	s_new_BlastNaExtendDirect(const BlastOffsetPair * offset_pairs, Int4 num_hits,
 	const BlastInitialWordParameters * word_params,
 	LookupTableWrap * lookup_wrap,
 	BLAST_SequenceBlk * query,

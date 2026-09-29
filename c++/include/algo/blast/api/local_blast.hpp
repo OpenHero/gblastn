@@ -91,7 +91,7 @@ public:
     CRef<CSearchResultSet> Run();
 	//////////////////////////////////////////////////////////////////////////
 	// add two parts PrelimSearchRun and TraceBackRun by kyzhao 2013.8.7
-	int  PrelimSearchRun(CRef<CSearchResultSet> retval);
+	int  PrelimSearchRun(CRef<CSearchResultSet>& retval);
 	CRef<CSearchResultSet> TraceBackRun();
 	//////////////////////////////////////////////////////////////////////////
     

@@ -1,4 +1,4 @@
-﻿// Utilities and timing functions
+// Utilities and timing functions
 //#include <helper_functions.h>    // includes cuda.h and cuda_runtime_api.h
 #include <algo/blast/gpu_blast/gpu_logfile.h>
 #include <cuda.h>
@@ -16,7 +16,7 @@ time_type getSystemTime() {
 
 static cudaEvent_t start, stop;
 
-CLogFile::CLogFile()
+CLogFile::CLogFile() : timer(NULL), dff(0), c1(0), c2(0), m_eptime(0)
 {
 #ifdef _MSC_VER
 	QueryPerformanceFrequency(&large_interger); 
@@ -153,7 +153,7 @@ void CLogFile::addTotalTime(string id, double time, bool is_print)
 
 	if (is_print)
 	{
-		cout << id << "\t" << time <<"\t"; 
+		cerr << id << "\t" << time <<"\t";
 	}	
 #if LOG_TIME	
 	timemap::iterator itr = total_time_map.find(id);
@@ -182,7 +182,7 @@ void CLogFile::addTotalNum(string id, long in_num, bool is_print)
 #if LOG_TIME
 	if (is_print)
 	{
-		cout << id << "\t" << in_num <<"\n"; 
+		cerr << id << "\t" << in_num <<"\n";
 	}	
 
 	numbermap::iterator itr = total_num_map.find(id);

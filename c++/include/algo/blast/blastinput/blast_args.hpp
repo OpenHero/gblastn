@@ -108,7 +108,7 @@ class NCBI_BLASTINPUT_EXPORT CStdCmdLineArgs : public IBlastCmdLineArgs
 {
 public:
     /** Default constructor */
-    CStdCmdLineArgs() : m_InputStream(0), m_OutputStream(0) {};
+    CStdCmdLineArgs() : m_InputStream(0), m_OutputStream(0), m_IOStream(0) {};
     /** Interface method, \sa IBlastCmdLineArgs::SetArgumentDescriptions */
     virtual void SetArgumentDescriptions(CArgDescriptions& arg_desc);
     /** Interface method, \sa IBlastCmdLineArgs::SetArgumentDescriptions */

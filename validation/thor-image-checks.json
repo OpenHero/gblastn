@@ -1,0 +1,63 @@
+{
+  "host_architecture": "aarch64",
+  "images": {
+    "localhost/gblastn:thor": {
+      "id": "d2e3a5ec749f912494e4590feafab3aabf27b6cc6ccbfc972d8ec37075f7c992",
+      "architecture": "arm64",
+      "entrypoint": null,
+      "blastn": {
+        "sha256": "6a4e2b0245a54b49605ddab3c800219450903a4a59f40d56af56d5204c60a332",
+        "version_stdout": "blastn: 2.2.28+\nPackage: blast 2.2.28, build Sep 29 2026 16:43:55\n",
+        "version_stderr": "",
+        "ldd": "\tlinux-vdso.so.1 (0x0000ffffa6e77000)\n\tlibz.so.1 => /lib/aarch64-linux-gnu/libz.so.1 (0x0000ffffa58c0000)\n\tlibcudart.so.13 => /usr/local/cuda/lib64/libcudart.so.13 (0x0000ffffa57f0000)\n\tlibstdc++.so.6 => /lib/aarch64-linux-gnu/libstdc++.so.6 (0x0000ffffa5560000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ffffa54b0000)\n\tlibgcc_s.so.1 => /lib/aarch64-linux-gnu/libgcc_s.so.1 (0x0000ffffa5470000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ffffa52b0000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffffa6e30000)\n\tlibdl.so.2 => /lib/aarch64-linux-gnu/libdl.so.2 (0x0000ffffa5280000)\n\tlibpthread.so.0 => /lib/aarch64-linux-gnu/libpthread.so.0 (0x0000ffffa5250000)\n\tlibrt.so.1 => /lib/aarch64-linux-gnu/librt.so.1 (0x0000ffffa5220000)\n"
+      },
+      "makeblastdb": {
+        "sha256": "5e73357325cea86a1934c6f8659b646c0c534b76fce1512f64900f857470a9c7",
+        "version_stdout": "makeblastdb: 2.2.28+\nPackage: blast 2.2.28, build Sep 29 2026 16:43:55\n",
+        "version_stderr": "",
+        "ldd": "\tlinux-vdso.so.1 (0x0000ffff99f8d000)\n\tlibstdc++.so.6 => /lib/aarch64-linux-gnu/libstdc++.so.6 (0x0000ffff98e60000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ffff98db0000)\n\tlibgcc_s.so.1 => /lib/aarch64-linux-gnu/libgcc_s.so.1 (0x0000ffff98d70000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ffff98bb0000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffff99f40000)\n"
+      },
+      "blastdbcmd": {
+        "sha256": "3922c29537cf05e49338fde89e17e756e8092287d6dd2ed76198e5a07ac4e678",
+        "version_stdout": "blastdbcmd: 2.2.28+\nPackage: blast 2.2.28, build Sep 29 2026 16:43:55\n",
+        "version_stderr": "",
+        "ldd": "\tlinux-vdso.so.1 (0x0000ffff8793c000)\n\tlibz.so.1 => /lib/aarch64-linux-gnu/libz.so.1 (0x0000ffff86590000)\n\tlibcudart.so.13 => /usr/local/cuda/lib64/libcudart.so.13 (0x0000ffff864c0000)\n\tlibstdc++.so.6 => /lib/aarch64-linux-gnu/libstdc++.so.6 (0x0000ffff86230000)\n\tlibm.so.6 => /lib/aarch64-linux-gnu/libm.so.6 (0x0000ffff86180000)\n\tlibgcc_s.so.1 => /lib/aarch64-linux-gnu/libgcc_s.so.1 (0x0000ffff86140000)\n\tlibc.so.6 => /lib/aarch64-linux-gnu/libc.so.6 (0x0000ffff85f80000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffff878f0000)\n\tlibdl.so.2 => /lib/aarch64-linux-gnu/libdl.so.2 (0x0000ffff85f50000)\n\tlibpthread.so.0 => /lib/aarch64-linux-gnu/libpthread.so.0 (0x0000ffff85f20000)\n\tlibrt.so.1 => /lib/aarch64-linux-gnu/librt.so.1 (0x0000ffff85ef0000)\n"
+      },
+      "build_info": "NCBI baseline: 2.2.28+\nCUDA target: sm_110 + compute_110 PTX\ngcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\ng++-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nnvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Thu_Mar_19_11:11:41_PM_PDT_2026\nCuda compilation tools, release 13.2, V13.2.78\nBuild cuda_13.2.r13.2/compiler.37668154_0\naarch64\n",
+      "acceptance_sha256": "38c994c328b13f0b0edf83c918c6be70d4fbac181c393b19b336a8ceca0640c2",
+      "sanitizer_summary_assertion_present": true,
+      "source_sha256": {}
+    },
+    "localhost/gblastn:thor-validation": {
+      "id": "1de52c11cd87fb045f99de3f3fec6d8bcebd7a8bbb65bbb54f0d08c4666cfa33",
+      "architecture": "arm64",
+      "entrypoint": null,
+      "blastn": {
+        "sha256": "6a4e2b0245a54b49605ddab3c800219450903a4a59f40d56af56d5204c60a332",
+        "version_stdout": "blastn: 2.2.28+\nPackage: blast 2.2.28, build Sep 29 2026 16:43:55\n",
+        "version_stderr": "",
+        "ldd": "\tlinux-vdso.so.1 (0x0000ffffb7996000)\n\tlibz.so.1 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libz.so.1 (0x0000ffffb63e0000)\n\tlibcudart.so.13 => /usr/local/cuda/lib64/libcudart.so.13 (0x0000ffffb6310000)\n\tlibstdc++.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libstdc++.so.6 (0x0000ffffb6080000)\n\tlibm.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libm.so.6 (0x0000ffffb5fd0000)\n\tlibgcc_s.so.1 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libgcc_s.so.1 (0x0000ffffb5f90000)\n\tlibc.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libc.so.6 (0x0000ffffb5dd0000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffffb7950000)\n\tlibdl.so.2 => /lib/aarch64-linux-gnu/libdl.so.2 (0x0000ffffb5da0000)\n\tlibpthread.so.0 => /lib/aarch64-linux-gnu/libpthread.so.0 (0x0000ffffb5d70000)\n\tlibrt.so.1 => /lib/aarch64-linux-gnu/librt.so.1 (0x0000ffffb5d40000)\n"
+      },
+      "makeblastdb": {
+        "sha256": "5e73357325cea86a1934c6f8659b646c0c534b76fce1512f64900f857470a9c7",
+        "version_stdout": "makeblastdb: 2.2.28+\nPackage: blast 2.2.28, build Sep 29 2026 16:43:55\n",
+        "version_stderr": "",
+        "ldd": "\tlinux-vdso.so.1 (0x0000ffffb243d000)\n\tlibstdc++.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libstdc++.so.6 (0x0000ffffb1320000)\n\tlibm.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libm.so.6 (0x0000ffffb1270000)\n\tlibgcc_s.so.1 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libgcc_s.so.1 (0x0000ffffb1230000)\n\tlibc.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libc.so.6 (0x0000ffffb1070000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffffb2400000)\n"
+      },
+      "blastdbcmd": {
+        "sha256": "3922c29537cf05e49338fde89e17e756e8092287d6dd2ed76198e5a07ac4e678",
+        "version_stdout": "blastdbcmd: 2.2.28+\nPackage: blast 2.2.28, build Sep 29 2026 16:43:55\n",
+        "version_stderr": "",
+        "ldd": "\tlinux-vdso.so.1 (0x0000ffffb06fd000)\n\tlibz.so.1 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libz.so.1 (0x0000ffffaf360000)\n\tlibcudart.so.13 => /usr/local/cuda/lib64/libcudart.so.13 (0x0000ffffaf290000)\n\tlibstdc++.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libstdc++.so.6 (0x0000ffffaf000000)\n\tlibm.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libm.so.6 (0x0000ffffaef50000)\n\tlibgcc_s.so.1 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libgcc_s.so.1 (0x0000ffffaef10000)\n\tlibc.so.6 => /usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/libc.so.6 (0x0000ffffaed50000)\n\t/lib/ld-linux-aarch64.so.1 (0x0000ffffb06c0000)\n\tlibdl.so.2 => /lib/aarch64-linux-gnu/libdl.so.2 (0x0000ffffaed20000)\n\tlibpthread.so.0 => /lib/aarch64-linux-gnu/libpthread.so.0 (0x0000ffffaecf0000)\n\tlibrt.so.1 => /lib/aarch64-linux-gnu/librt.so.1 (0x0000ffffaecc0000)\n"
+      },
+      "build_info": "NCBI baseline: 2.2.28+\nCUDA target: sm_110 + compute_110 PTX\ngcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\ng++-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nnvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2026 NVIDIA Corporation\nBuilt on Thu_Mar_19_11:11:41_PM_PDT_2026\nCuda compilation tools, release 13.2, V13.2.78\nBuild cuda_13.2.r13.2/compiler.37668154_0\naarch64\n",
+      "acceptance_sha256": "38c994c328b13f0b0edf83c918c6be70d4fbac181c393b19b336a8ceca0640c2",
+      "sanitizer_summary_assertion_present": true,
+      "source_sha256": {
+        "c++/src/app/blast/blastn_app.cpp": "9b8bc12afa59b30a6961c60510c2ef08c2437c0685929b16dbcde783bcb681ed",
+        "c++/src/algo/blast/api/prelim_stage.cpp": "ae12c03548de3054873caecc5553c372a1c161e38bad6ac19816e49ff1b49334"
+      },
+      "cuda_objects": "PTX file    1: gpu_blastn_MB_and_smallNa.sm_110.ptx\nELF file    1: gpu_blastn_MB_and_smallNa.sm_110.cubin\n"
+    }
+  }
+}

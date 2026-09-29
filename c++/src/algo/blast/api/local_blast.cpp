@@ -188,13 +188,14 @@ CLocalBlast::Run()
         m_InternalData = m_PrelimSearch->Run();
 		__int64 c2 = slogfile.NewEnd(true);
 		double total_time = slogfile.elaplsedTime(c1, c2);
-		cout << total_time <<"\t";
+		cerr << "GBLASTN_SEARCH preliminary_seconds=" << total_time / 1000.0 << "\n";
 		slogfile.addTotalTime("Total PrelimSearch Time", c1, c2, false);
 		//////////////////////////////////////////////////////////////////////////
 
     } catch( CIndexedDbException & e ) { 
         throw;
     } catch (...) {
+        throw; // CUDA and allocation failures must never be swallowed.
     }
     if (status != 0)
     {
@@ -266,7 +267,7 @@ CLocalBlast::Run()
     CRef<CSearchResultSet> retval = m_TbackSearch->Run();
 	__int64 c2 = slogfile.NewEnd(true);
 	double total_time = slogfile.elaplsedTime(c1, c2);
-	cout << total_time <<"\t";
+	cerr << "GBLASTN_SEARCH traceback_seconds=" << total_time / 1000.0 << "\n";
 	slogfile.addTotalTime("Total Traceback Time", c1, c2, false);
 	//////////////////////////////////////////////////////////////////////////
 	
@@ -290,7 +291,7 @@ Int4 CLocalBlast::GetNumExtensions()
 
 //////////////////////////////////////////////////////////////////////////
 // add two parts PrelimSearchRun and TraceBackRun by kyzhao 2013.8.7
-int  CLocalBlast::PrelimSearchRun(CRef<CSearchResultSet> retval)
+int  CLocalBlast::PrelimSearchRun(CRef<CSearchResultSet>& retval)
 {
 	_ASSERT(m_QueryFactory);
 	_ASSERT(m_PrelimSearch);
@@ -315,6 +316,8 @@ int  CLocalBlast::PrelimSearchRun(CRef<CSearchResultSet> retval)
 
 
 	} catch (...) {
+        // Allocation, CUDA and search errors must reach the application.
+        throw;
 	}
 	if (status != 0)
 	{

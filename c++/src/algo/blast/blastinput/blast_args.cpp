@@ -2285,8 +2285,7 @@ CStdCmdLineArgs::SetArgumentDescriptions(CArgDescriptions& arg_desc)
     // report output file
     arg_desc.AddDefaultKey(kArgOutput, "output_file", 
                    "Output file name",
-                   //CArgDescriptions::eOutputFile, "-");
-				   CArgDescriptions::eIOFile, "-");	//modified by kyzhao
+                   CArgDescriptions::eOutputFile, "-");
 
     arg_desc.SetCurrentGroup("");
 }
@@ -2300,8 +2299,7 @@ CStdCmdLineArgs::ExtractAlgorithmOptions(const CArgs& args,
         m_InputStream = &args[kArgQuery].AsInputFile();
     }
     ///// CHANGED by kyzhao/////
-    m_IOStream = &args[kArgOutput].AsIOFile();
-    //m_OutputStream = &args[kArgOutput].AsOutputFile();
+    m_OutputStream = &args[kArgOutput].AsOutputFile();
     ///// CHANGED /////
 }
 
@@ -2331,7 +2329,8 @@ CStdCmdLineArgs::GetIOStream() const
 {
     // programmer must ensure the ExtractAlgorithmOptions method is called
     // before this method is invoked
-    _ASSERT(m_IOStream);
+    if (!m_IOStream)
+        NCBI_THROW(CInputException, eInvalidInput, "Bidirectional output streams are unsupported; use GetOutputStream");
     return *m_IOStream;
 }
 ///// CHANGED /////
@@ -2478,7 +2477,7 @@ void CGpuArgs::SetArgumentDescriptions(CArgDescriptions& arg_desc)
 	arg_desc.SetCurrentGroup("GPU Options");
 
 	arg_desc.AddDefaultKey(kArgMethod, "int_value",
-		"Methods: 1 normal, 2 pipeline in query, 3 pipeline between queries",
+		"Execution mode: 0 pipeline within query, 1 sequential (default), 2 pipeline between queries; 3 is an alias for 2",
 		CArgDescriptions::eInteger,
 		kDfltArgMethod);
 
@@ -2488,9 +2487,14 @@ void CGpuArgs::SetArgumentDescriptions(CArgDescriptions& arg_desc)
 		kDfltArgQueryList);
 
 	arg_desc.AddDefaultKey(kArgUseGpu, "",
-		"Use GPU Cards for blastn",
+		"Use CUDA acceleration; fail if a CUDA device cannot be initialized",
 		CArgDescriptions::eBoolean,
 		kDfltArgUseGpu);
+
+	arg_desc.AddDefaultKey("gpu_required", "boolean",
+		"Require -use_gpu true and successful CUDA initialization (no device fallback)",
+		CArgDescriptions::eBoolean, "false");
+	arg_desc.SetConstraint(kArgMethod, new CArgAllow_Integers(0, 3));
 
 	arg_desc.AddDefaultKey(kArgGpuID, "int_value",
 		"GPU ID",

@@ -81,9 +81,17 @@ CBlastPrelimSearch::CBlastPrelimSearch(CRef<IQueryFactory> query_factory,
     : m_QueryFactory(query_factory), m_InternalData(new SInternalData),
     m_Options(options), m_DbAdapter(db), m_DbInfo(NULL)
 {
-    BlastSeqSrc* seqsrc = db->MakeSeqSrc();
+    // A sequence source carries mutable allocation/masking state. Sharing
+    // the adapter's instance between concurrent preliminary/traceback stages
+    // can make ReleaseSequence free a mapped buffer as if it were allocated.
+    // Clone the wrapper (as worker threads already do), preserving its shared
+    // database handle while owning independent per-search state.
+    BlastSeqSrc* seqsrc = BlastSeqSrcCopy(db->MakeSeqSrc());
+    if (!seqsrc)
+        NCBI_THROW(CBlastSystemException, eOutOfMemory, "Failed to copy database sequence source");
+    CRef<TBlastSeqSrc> owned(new TBlastSeqSrc(seqsrc, BlastSeqSrcFree));
     x_Init(query_factory, options, CRef<CPssmWithParameters>(), seqsrc);
-    m_InternalData->m_SeqSrc.Reset(new TBlastSeqSrc(seqsrc, 0));
+    m_InternalData->m_SeqSrc = owned;
 }
 
 CBlastPrelimSearch::CBlastPrelimSearch(CRef<IQueryFactory> query_factory,
@@ -165,22 +173,27 @@ CBlastPrelimSearch::x_LaunchMultiThreadedSearch(SInternalData& internal_data)
     //
     GetDbIndexSetNumThreadsFn()( GetNumberOfThreads() );
 
-    // ... launch the threads ...
-    NON_CONST_ITERATE(TBlastThreads, thread, the_threads) {
-        (*thread)->Run();
+    // Join every successfully launched thread before reporting any error.
+    // This keeps query/device state alive even when thread creation or CUDA
+    // execution fails partway through a multithreaded search.
+    size_t launched = 0;
+    std::exception_ptr launch_error;
+    try {
+        for (; launched < the_threads.size(); ++launched)
+            the_threads[launched]->Run();
+    } catch (...) {
+        launch_error = std::current_exception();
     }
-
-    // ... and wait for the threads to finish
-    long retv(0);
-    NON_CONST_ITERATE(TBlastThreads, thread, the_threads) {
-        long result(0);
-        (*thread)->Join(reinterpret_cast<void**>(&result));
-        if (result) {
-            retv = result;
-        }
+    intptr_t retv = 0;
+    for (size_t i = 0; i < launched; ++i) {
+        void* result = NULL;
+        the_threads[i]->Join(&result);
+        if (result) retv = reinterpret_cast<intptr_t>(result);
     }
-
     BlastSeqSrcSetNumberOfThreads(m_InternalData->m_SeqSrc->GetPointer(), 0);
+    if (launch_error) std::rethrow_exception(launch_error);
+    for (size_t i = 0; i < launched; ++i)
+        the_threads[i]->RethrowFailure();
 
     if (retv) {
           NCBI_THROW(CBlastException, eCoreBlastError,

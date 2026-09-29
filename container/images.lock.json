@@ -1,0 +1,54 @@
+{
+  "verified_utc": "2026-09-29T16:18:22.104656+00:00",
+  "source": "https://registry-1.docker.io/v2/nvidia/cuda/manifests/",
+  "images": {
+    "devel": {
+      "tag": "docker.io/nvidia/cuda:13.2.1-devel-ubuntu24.04",
+      "index_digest": "sha256:44a9504c6dfb50b1241464241b02a93871928f373de6f5a644cf5fe9f080aa63",
+      "platform_manifests": [
+        {
+          "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+          "digest": "sha256:0e1392f431f89f143d0d6d0fa397a2b9a6a236f8b3628cfd3afbf21e15ab4a98",
+          "size": 3260,
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        },
+        {
+          "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+          "digest": "sha256:0e1f7b8e96fa9ec5e36d4709a38c62df7b5665977446081811c12b8234d874bf",
+          "size": 3254,
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        }
+      ]
+    },
+    "runtime": {
+      "tag": "docker.io/nvidia/cuda:13.2.1-runtime-ubuntu24.04",
+      "index_digest": "sha256:4c17c2e7474ca1d470428b25e87e95756f51e7da3b663859894a03bc5a7ebdae",
+      "platform_manifests": [
+        {
+          "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+          "digest": "sha256:a52783d8d73ace53998d4e740515e9942e73072dc7fbd5322917eb382a0bc7fb",
+          "size": 2631,
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        },
+        {
+          "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+          "digest": "sha256:285c50be684df76df5cd0e3162687e74b7b67add47134ff55075e3a9cfa94044",
+          "size": 2624,
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        }
+      ]
+    }
+  }
+}

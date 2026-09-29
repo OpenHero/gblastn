@@ -5,15 +5,15 @@ WATCHERS = camacho madden maning fongah2
 APP = tblastx
 SRC = tblastx_app
 LIB_ = $(BLAST_INPUT_LIBS) $(BLAST_LIBS) $(OBJMGR_LIBS)
-LIB = blast_app_util $(LIB_:%=%$(STATIC))
+LIB = blast_app_util $(LIB_:%=%$(STATIC)) gpublastn
 
 # De-universalize Mac builds to work around a PPC toolchain limitation
 CFLAGS   = $(FAST_CFLAGS:ppc=i386)
 CXXFLAGS = $(FAST_CXXFLAGS:ppc=i386)
-LDFLAGS  = $(FAST_LDFLAGS:ppc=i386)
+LDFLAGS  = $(FAST_LDFLAGS:ppc=i386) $(CUDA_LDFLAGS)
 
 CPPFLAGS = $(ORIG_CPPFLAGS)
-LIBS = $(CMPRS_LIBS) $(DL_LIBS) $(NETWORK_LIBS) $(ORIG_LIBS) -lgpublastn -lcudart
+LIBS = $(CMPRS_LIBS) $(DL_LIBS) $(NETWORK_LIBS) $(ORIG_LIBS) $(CUDA_LIBS)
 
 REQUIRES = objects -Cygwin
 

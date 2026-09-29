@@ -39,6 +39,7 @@ static char const rcsid[] =
 #include <ncbi_pch.hpp>
 #include <corelib/ncbiapp.hpp>
 #include <algo/blast/api/local_blast.hpp>
+#include <algo/blast/api/blast_nucl_options.hpp>
 #include <algo/blast/api/remote_blast.hpp>
 #include <algo/blast/blastinput/blast_fasta_input.hpp>
 #include <algo/blast/blastinput/blastn_args.hpp>
@@ -46,1241 +47,386 @@ static char const rcsid[] =
 #include <algo/blast/format/blast_format.hpp>
 #include "blast_app_util.hpp"
 
-///// CHANGED by kyzhao /////
-//#include "utility.h"
-#include <sstream>
-#if __linux__
-#include <unistd.h>
-#endif
-
-//#include <string>
-///// CHANGED /////
-
-//////////////////////////////////////////////////////////////////////////
-// kyzhao for gpu
-//#include <windows.h>
-#include <algo/blast/gpu_blast/gpu_logfile.h>
+#include <corelib/ncbifile.hpp>
 #include <algo/blast/gpu_blast/gpu_blastn.h>
+#include <chrono>
+#include <cstdlib>
+#include <cstdio>
+#include <fstream>
+#include <future>
+#include <memory>
+#include <set>
+#include <stdexcept>
 
-#ifndef SKIP_DOXYGEN_PROCESSING
 USING_NCBI_SCOPE;
 USING_SCOPE(blast);
 USING_SCOPE(objects);
-#endif
 
-class CBlastnApp : public CNcbiApplication
-{
+namespace {
+// Preliminary search temporarily changes effective search spaces when splitting
+// queries. Every in-flight batch needs its own options, even within one job.
+class CBatchOptions : public CBlastNucleotideOptionsHandle {
 public:
-    /** @inheritDoc */
+    explicit CBatchOptions(const CBlastOptions& source)
+        : CBlastNucleotideOptionsHandle(source.GetLocality()) {
+        m_Opts = source.Clone();
+    }
+};
+
+// Jobs own their arguments (and therefore streams), options, scopes and
+// formatters until every submitted batch has been formatted. No stream or
+// formatter is shared across query-list entries.
+struct SQueryJob {
+    std::unique_ptr<CArgs> args;
+    CRef<CBlastnAppArgs> command;
+    CRef<CBlastOptionsHandle> options;
+    CRef<CBlastDatabaseArgs> database;
+    CRef<CLocalDbAdapter> adapter;
+    CRef<CScope> scope;
+    std::unique_ptr<CBlastFormat> formatter;
+    string name;
+    size_t submitted = 0;
+    size_t completed = 0;
+    bool sealed = false;
+    bool finished = false;
+
+    void FinishIfReady() {
+        if (!sealed || finished || completed != submitted) return;
+        formatter->PrintEpilog(options->GetOptions());
+        command->GetOutputStream().flush();
+        if (!command->GetOutputStream())
+            throw std::runtime_error("G-BLASTN: failed writing output for " + name);
+        if (command->ProduceDebugOutput())
+            options->GetOptions().DebugDumpText(NcbiCerr, "BLAST options", 1);
+        finished = true;
+    }
+};
+
+bool BatchTrace()
+{
+    const char* pipeline = std::getenv("GBLASTN_PIPELINE_TRACE");
+    const char* gpu = std::getenv("GBLASTN_GPU_TRACE");
+    return (pipeline && pipeline[0] == '1') || (gpu && gpu[0] == '1');
+}
+
+struct SQueryBatch {
+    std::shared_ptr<SQueryJob> job;
+    size_t index = 0;
+    CRef<CBlastQueryVector> query;
+    CRef<IQueryFactory> factory;
+    CRef<CBlastOptionsHandle> options;
+    std::unique_ptr<CLocalBlast> search;
+    CRef<CSearchResultSet> results;
+    bool needs_traceback = false;
+};
+typedef std::shared_ptr<SQueryBatch> TBatch;
+
+void FormatBatch(const TBatch& batch)
+{
+    SQueryJob& job = *batch->job;
+    if (batch->results.Empty())
+        throw std::runtime_error("G-BLASTN: no search results for " + job.name);
+    ITERATE(CSearchResultSet, result, *batch->results) {
+        if ((**result).HasErrors())
+            throw std::runtime_error("G-BLASTN: " + (**result).GetErrorStrings());
+    }
+    if (job.command->GetFormattingArgs()->ArchiveFormatRequested(*job.args)) {
+        job.formatter->WriteArchive(*batch->factory, *batch->options, *batch->results);
+    } else {
+        BlastFormatter_PreFetchSequenceData(*batch->results, job.scope);
+        ITERATE(CSearchResultSet, result, *batch->results)
+            job.formatter->PrintOneResultSet(**result, batch->query);
+    }
+    ++job.completed;
+    if (BatchTrace())
+        std::fprintf(stderr, "GBLASTN_BATCH query=\"%s\" index=%zu stage=completed\n",
+                     job.name.c_str(), batch->index);
+    job.FinishIfReady();
+}
+
+// At most one preliminary search and one traceback run concurrently. This
+// bounds live batches and GPU memory, and avoids concurrent use of the same
+// device's lookup buffers. Formatting is ordered on the calling thread.
+// Future destruction joins outstanding tasks, including exception paths.
+class CQueryPipeline {
+public:
+    void Submit(const TBatch& batch) {
+        AdvancePreliminary();
+        m_Preliminary = std::async(std::launch::async, [batch]() {
+            const int status = batch->search->PrelimSearchRun(batch->results);
+            batch->needs_traceback = status == 0;
+            if (status != 0 && batch->results.Empty())
+                throw std::runtime_error("G-BLASTN: preliminary search failed");
+            return batch;
+        });
+    }
+    void Drain() {
+        AdvancePreliminary();
+        if (m_Traceback.valid()) FormatBatch(m_Traceback.get());
+    }
+private:
+    void AdvancePreliminary() {
+        if (!m_Preliminary.valid()) return;
+        TBatch previous = m_Preliminary.get();
+        if (m_Traceback.valid()) FormatBatch(m_Traceback.get());
+        m_Traceback = std::async(std::launch::async, [previous]() {
+            if (previous->needs_traceback)
+                previous->results = previous->search->TraceBackRun();
+            return previous;
+        });
+    }
+    std::future<TBatch> m_Preliminary;
+    std::future<TBatch> m_Traceback;
+};
+
+// Constructed before the pipeline, so all workers finish before GPU release.
+struct SGpuSession {
+    ~SGpuSession() { Blast_gpu_Release(); }
+};
+
+struct SQueryPath { string input; string output; };
+
+string ResolvedPath(const string& path)
+{
+    return CDirEntry::NormalizePath(CDirEntry::CreateAbsolutePath(path), eFollowLinks);
+}
+
+vector<SQueryPath> ReadQueryList(const string& filename, const string& output)
+{
+    std::ifstream list(filename.c_str());
+    if (!list)
+        throw std::runtime_error("G-BLASTN: cannot open query list: " + filename);
+    vector<SQueryPath> paths;
+    std::set<string> outputs;
+    std::set<string> inputs;
+    const string::size_type slash = output.find_last_of("/\\");
+    const string directory = slash == string::npos ? "" : output.substr(0, slash + 1);
+    string line;
+    while (std::getline(list, line)) {
+        line = NStr::TruncateSpaces(line);
+        if (line.empty()) continue;
+        std::ifstream query(line.c_str());
+        if (!query || query.peek() == std::ifstream::traits_type::eof())
+            throw std::runtime_error("G-BLASTN: missing or empty query-list input: " + line);
+        const string::size_type pos = line.find_last_of("/\\");
+        const string name = pos == string::npos ? line : line.substr(pos + 1);
+        SQueryPath path = {line, directory + name + ".out"};
+        const string absolute_output = ResolvedPath(path.output);
+        if (!outputs.insert(absolute_output).second)
+            throw std::runtime_error("G-BLASTN: query-list output-name collision: " + path.output);
+        inputs.insert(ResolvedPath(line));
+        paths.push_back(path);
+    }
+    if (list.bad()) throw std::runtime_error("G-BLASTN: error reading query list: " + filename);
+    if (paths.empty()) throw std::runtime_error("G-BLASTN: query list contains no inputs: " + filename);
+    // SetOptions opens the command's -out stream before per-entry streams.
+    const string initial_output = ResolvedPath(output);
+    if (output != "-" && (inputs.count(initial_output) ||
+        initial_output == ResolvedPath(filename)))
+        throw std::runtime_error("G-BLASTN: -out would overwrite a query-list input: " + output);
+    for (std::set<string>::const_iterator out = outputs.begin(); out != outputs.end(); ++out)
+        if (inputs.count(*out) || *out == ResolvedPath(filename))
+            throw std::runtime_error("G-BLASTN: query-list output would overwrite an input: " + *out);
+    return paths;
+}
+}
+
+class CBlastnApp : public CNcbiApplication {
+public:
     CBlastnApp() {
         CRef<CVersion> version(new CVersion());
         version->SetVersionInfo(new CBlastVersion());
         SetFullVersion(version);
-
-		//////////////////////////////////////////////////////////////////////////
-		job_queue = NULL;
-		query_queue = NULL;
-		prelim_queue = NULL;
-		result_queue = NULL;
-
-		prelim_thread = NULL;
-		trace_thread = NULL;
-		print_thread = NULL;
-		rdsmap = NULL;
-		//////////////////////////////////////////////////////////////////////////
-		
     }
-
-	//////////////////////////////////////////////////////////////////////////
-	//added by kyzhao
-	~CBlastnApp();
-	//////////////////////////////////////////////////////////////////////////
-	
 private:
-    /** @inheritDoc */
-    virtual void Init();
-    /** @inheritDoc */
-    virtual int Run();
-
-	//////////////////////////////////////////////////////////////////////////
-	//added by kyzhao
-	int Method1(const CBlastOptions& opt);
-	int Method2(const CBlastOptions& opt);
-	int Method3(const CBlastOptions& opt);
-
-	int Method1_opt(string job_name);
-	int Method2_opt(string job_name);
-	int Method3_opt(string job_name);
-
-	//void FormatResult(string outfile);
-	//////////////////////////////////////////////////////////////////////////
-	work_queue<JobItem*> * job_queue;// = new work_queue<JobItem*>;
-	work_queue<work_item*> * query_queue;// = new work_queue<work_item*>;
-	work_queue<work_item*> * prelim_queue;// = new work_queue<work_item*>;
-	work_queue<work_item*> * result_queue;// = new work_queue<work_item*>;
-
-	PrelimSearchThread* prelim_thread;// = new PrelimSearchThread[prelim_num];
-	TraceBackThread* trace_thread;// = new TraceBackThread[trace_num];
-	WorkThreadBase* print_thread;// = new PrintThread[print_num];
-
-	string output;
-	NewRecordsMap* rdsmap;
-	//////////////////////////////////////////////////////////////////////////
-	
-    /// This application's command line args
-    CRef<CBlastnAppArgs> m_CmdLineArgs; 
-
-
+    void Init() {
+        m_Command.Reset(new CBlastnAppArgs());
+        HideStdArgs(fHideLogfile | fHideConffile | fHideFullVersion | fHideXmlHelp | fHideDryRun);
+        SetupArgDescriptions(m_Command->SetCommandLine());
+    }
+    int Run();
+    void ProcessJob(const SQueryPath* path, int mode, CQueryPipeline& pipeline);
+    CRef<CBlastnAppArgs> m_Command;
+    CRef<CBlastOptionsHandle> m_Options;
+    bool m_IndexInitialized = false;
+    bool m_IndexLoaded = false;
+    ELookupTableType m_IndexLookupType = eMBLookupTable;
 };
 
-//////////////////////////////////////////////////////////////////////////
-
-CBlastnApp::~CBlastnApp()
+void CBlastnApp::ProcessJob(const SQueryPath* path, int mode, CQueryPipeline& pipeline)
 {
-	if (job_queue != NULL)
-	{
-		delete job_queue;
-	}
-	if (query_queue != NULL)
-	{
-		delete query_queue;
-	}
-	if (prelim_queue != NULL)
-	{
-		delete prelim_queue;
-	}
-	if (result_queue != NULL)
-	{
-		delete result_queue;
-	}
-
-	if (prelim_queue != NULL)
-	{
-		delete[] prelim_thread;
-	}
-
-	if (trace_thread != NULL)
-	{
-		delete[] trace_thread;
-	}
-	if (print_thread != NULL)
-	{
-		delete[] print_thread;
-	}
-	if (rdsmap != NULL)
-	{
-		delete rdsmap;
-	}
-}
-//////////////////////////////////////////////////////////////////////////
-
-//void CBlastnApp::FormatResult(string outfile)
-//{
-//	if (rdsmap == NULL)
-//	{
-//		printf("Can't load record map!\n");
-//		//exit(-1);
-//	}else
-//	{
-//		///// CHANGED /////
-//		//string outputfile = args[kArgOutput].AsString();
-//		//printf("Output file : %s\n", outputfile.c_str());
-//		//printf("Output Choice : %d\n", m_CmdLineArgs->GetFormattingArgs()->GetFormattedOutputChoice());
-//		if ( m_CmdLineArgs->GetFormattingArgs()->GetFormattedOutputChoice() == 7){//CFormattingArgs::EOutputFormat::eTabularWithComments ) {
-//			// Flush all content first
-//			//CNcbiIostream& ioStream = m_CmdLineArgs->GetInputOutputStream();
-//			//ioStream.flush();
-//			cout << "outfile" <<outfile<<endl;
-//			fstream ioStream;
-//			ioStream.open(outfile.c_str());
-//
-//			// Return to the beginning
-//			//ioStream.seekg(0);
-//
-//			std::vector<std::string> lines;
-//			std::string line;
-//			int line_count = 0;
-//			while (std::getline(ioStream, line))
-//			{
-//				lines.push_back(line);
-//			}
-//			printf("Line Count : %d\n", lines.size());
-//
-//			// Return to the beginning
-//			ioStream.clear();
-//			ioStream.seekg(0);
-//
-//			for ( int i = 0; i < lines.size(); i++ ) {
-//				if ( lines[i][0] == '#' ) {
-//					ioStream.write(lines[i].c_str(), lines[i].length());
-//					ioStream.write("\n", 1);
-//					//fprintf(ioStream, "%s", line);
-//					//ioStream << lines[i] <<"\r";
-//				}
-//				else {
-//					std::vector<std::string> tokens;
-//					char* pch = strtok((char*)lines[i].c_str(),"\t");
-//
-//					int k = 0;
-//					while ( pch != NULL ) {
-//						tokens.push_back(std::string(pch));
-//						pch = strtok (NULL, "\t");
-//						k++;
-//					}
-//
-//					//cout << "k:"<< k<<endl;
-//					stringstream myStrStart(tokens[8]);
-//					stringstream myStrEnd(tokens[9]);
-//					unsigned int start_offset;// = atoi(tokens[8].c_str());
-//					unsigned int end_offset;// = atoi(tokens[9].c_str());
-//					myStrStart >> start_offset;
-//					myStrEnd >> end_offset;
-//
-//					NewRecord* found = rdsmap->getCorrectedRecord(tokens[1], start_offset, end_offset);
-//					if ( found != NULL ) {
-//						string buf;
-//						char start_offset_s[50];
-//						char end_offset_s[50];
-//						sprintf(start_offset_s, "%d", start_offset);
-//						sprintf(end_offset_s, "%d", end_offset);
-//
-//						buf.append(tokens[0]).append("\t")
-//							.append(found->_id).append("\t")
-//							.append(tokens[2]).append("\t")
-//							.append(tokens[3]).append("\t")
-//							.append(tokens[4]).append("\t")
-//							.append(tokens[5]).append("\t")
-//							.append(tokens[6]).append("\t")
-//							.append(tokens[7]).append("\t")
-//							.append(start_offset_s).append("\t")
-//							.append(end_offset_s).append("\t")
-//							.append(tokens[10]).append("\t")
-//							.append(tokens[11]).append("\n");
-//						ioStream.write(buf.c_str(), buf.length());
-//						//fprintf(fo, "%s", buf.c_str());
-//					}
-//					else
-//						continue;
-//				}
-//			}
-//
-//			ioStream.close();
-//		}
-//		printf("Complete Correcting!\n");
-//		///// CHANGED /////
-//	}
-//}
-
-void CBlastnApp::Init()
-{
-    // formulate command line arguments
-
-    m_CmdLineArgs.Reset(new CBlastnAppArgs());
-
-    // read the command line
-
-    HideStdArgs(fHideLogfile | fHideConffile | fHideFullVersion | fHideXmlHelp | fHideDryRun);
-    SetupArgDescriptions(m_CmdLineArgs->SetCommandLine());
-}
-
-#if 0
-int CBlastnApp::Run(void)
-{
-    int status = BLAST_EXIT_SUCCESS;
-
-    try {
-
-        // Allow the fasta reader to complain on invalid sequence input
-        SetDiagPostLevel(eDiag_Warning);
-
-        /*** Get the BLAST options ***/
-        const CArgs& args = GetArgs();
-        CRef<CBlastOptionsHandle> opts_hndl;
-        if(RecoverSearchStrategy(args, m_CmdLineArgs)){
-        	opts_hndl.Reset(&*m_CmdLineArgs->SetOptionsForSavedStrategy(args));
+    std::shared_ptr<SQueryJob> job(new SQueryJob());
+    job->args.reset(new CArgs(GetArgs()));
+    job->command = path ? CRef<CBlastnAppArgs>(new CBlastnAppArgs()) : m_Command;
+    if (path) {
+        std::unique_ptr<CArgDescriptions> descriptions(job->command->SetCommandLine());
+        unsigned int plain = kMax_UInt;
+        descriptions->x_CreateArg("-query", true, path->input, &plain, *job->args, true);
+        descriptions->x_CreateArg("-out", true, path->output, &plain, *job->args, true);
+    }
+    job->name = path ? path->input : (*job->args)[kArgQuery].AsString();
+    if (!path) {
+        // Reuse the already parsed command so imported strategies and stdin
+        // are consumed exactly once.
+        job->options = m_Options;
+    } else {
+        job->options.Reset(&*job->command->SetOptions(*job->args));
+    }
+    const CBlastOptions& opt = job->options->GetOptions();
+    job->database = job->command->GetBlastDatabaseArgs();
+    InitializeSubject(job->database, job->options, job->command->ExecuteRemotely(),
+                      job->adapter, job->scope);
+    CRef<CQueryOptionsArgs> query_options = job->command->GetQueryOptionsArgs();
+    SDataLoaderConfig loaders = InitializeQueryDataLoaderConfiguration(
+        query_options->QueryIsProtein(), job->adapter);
+    CBlastInputSourceConfig config(loaders, query_options->GetStrand(),
+        query_options->UseLowercaseMasks(), query_options->GetParseDeflines(),
+        query_options->GetRange());
+    config.SetQueryLocalIdMode();
+    CBlastFastaInputSource fasta(job->command->GetInputStream(), config);
+    const int batch_size = job->command->GetQueryBatchSize();
+    if (batch_size <= 0)
+        throw std::runtime_error("G-BLASTN: BATCH_SIZE must be a positive integer");
+    CBlastInput input(&fasta, batch_size);
+    if (opt.GetUseIndex() && !job->command->ExecuteRemotely()) {
+        // The index callbacks are process-wide. Initialize once, before any
+        // submitted search, rather than replacing them under an active job.
+        if (!m_IndexInitialized) {
+            CRef<CBlastOptions> options(&job->options->SetOptions());
+            CSetupFactory::InitializeMegablastDbIndex(options);
+            m_IndexLoaded = opt.GetMBIndexLoaded();
+            m_IndexLookupType = opt.GetLookupTableType();
+            m_IndexInitialized = true;
+        } else {
+            job->options->SetOptions().SetMBIndexLoaded(m_IndexLoaded);
+            if (m_IndexLoaded)
+                job->options->SetOptions().SetLookupTableType(m_IndexLookupType);
+            else
+                job->options->SetOptions().SetUseIndex(false);
         }
-        else {
-        	opts_hndl.Reset(&*m_CmdLineArgs->SetOptions(args));
-        }
-        const CBlastOptions& opt = opts_hndl->GetOptions();
+        if (m_IndexLoaded && opt.GetUseGpu())
+            throw std::runtime_error("G-BLASTN: indexed megablast bypasses CUDA scanning; use -use_index false with -use_gpu true");
+    }
+    CRef<CFormattingArgs> format = job->command->GetFormattingArgs();
+    job->formatter.reset(new CBlastFormat(opt, *job->adapter,
+        format->GetFormattedOutputChoice(), query_options->GetParseDeflines(),
+        job->command->GetOutputStream(), format->GetNumDescriptions(),
+        format->GetNumAlignments(), *job->scope, opt.GetMatrixName(),
+        format->ShowGis(), format->DisplayHtmlOutput(), opt.GetQueryGeneticCode(),
+        opt.GetDbGeneticCode(), opt.GetSumStatisticsMode(),
+        job->command->ExecuteRemotely(), job->adapter->GetFilteringAlgorithm(),
+        format->GetCustomOutputFormatSpec(), job->command->GetTask() == "megablast",
+        opt.GetMBIndexLoaded()));
+    job->formatter->PrintProlog();
+    CBatchSizeMixer mixer(2000000, SplitQuery_GetChunkSize(opt.GetProgram()) - 1000);
+    const char* requested_batch_size = std::getenv("BATCH_SIZE");
+    const bool fixed_batch_size = requested_batch_size && *requested_batch_size;
+    if (!job->command->ExecuteRemotely() && !fixed_batch_size)
+        input.SetBatchSize(mixer.GetBatchSize());
 
-        /*** Initialize the database/subject ***/
-        CRef<CBlastDatabaseArgs> db_args(m_CmdLineArgs->GetBlastDatabaseArgs());
-        CRef<CLocalDbAdapter> db_adapter;
-        CRef<CScope> scope;
-        InitializeSubject(db_args, opts_hndl, m_CmdLineArgs->ExecuteRemotely(),
-                         db_adapter, scope);
-        _ASSERT(db_adapter && scope);
-
-        /*** Get the query sequence(s) ***/
-        CRef<CQueryOptionsArgs> query_opts = 
-            m_CmdLineArgs->GetQueryOptionsArgs();
-        SDataLoaderConfig dlconfig =
-            InitializeQueryDataLoaderConfiguration(query_opts->QueryIsProtein(),
-                                                   db_adapter);
-        CBlastInputSourceConfig iconfig(dlconfig, query_opts->GetStrand(),
-                                     query_opts->UseLowercaseMasks(),
-                                     query_opts->GetParseDeflines(),
-                                     query_opts->GetRange());
-        iconfig.SetQueryLocalIdMode();
-        CBlastFastaInputSource fasta(m_CmdLineArgs->GetInputStream(), iconfig);
-        CBlastInput input(&fasta, m_CmdLineArgs->GetQueryBatchSize());
-
-        // Initialize the megablast database index now so we can know whether an indexed search will be run.
-        // This is only important for the reference in the report, but would be done anyway.
-        if (opt.GetUseIndex() && !m_CmdLineArgs->ExecuteRemotely()) {
-            CRef<CBlastOptions> my_options(&(opts_hndl->SetOptions()));
-            CSetupFactory::InitializeMegablastDbIndex(my_options);
-        }
-
-        /*** Get the formatting options ***/
-        CRef<CFormattingArgs> fmt_args(m_CmdLineArgs->GetFormattingArgs());
-        CBlastFormat formatter(opt, *db_adapter,
-                               fmt_args->GetFormattedOutputChoice(),
-                               query_opts->GetParseDeflines(),
-                               m_CmdLineArgs->GetOutputStream(),
-                               fmt_args->GetNumDescriptions(),
-                               fmt_args->GetNumAlignments(),
-                               *scope,
-                               opt.GetMatrixName(),
-                               fmt_args->ShowGis(),
-                               fmt_args->DisplayHtmlOutput(),
-                               opt.GetQueryGeneticCode(),
-                               opt.GetDbGeneticCode(),
-                               opt.GetSumStatisticsMode(),
-                               m_CmdLineArgs->ExecuteRemotely(),
-                               db_adapter->GetFilteringAlgorithm(),
-                               fmt_args->GetCustomOutputFormatSpec(),
-                               m_CmdLineArgs->GetTask() == "megablast",
-                               opt.GetMBIndexLoaded());
-                               
-        
-        formatter.PrintProlog();
-        
-        CBatchSizeMixer mixer(2000000,   // targeted at 2M hits per batch
-                              SplitQuery_GetChunkSize(opt.GetProgram())-1000);
-        if (!m_CmdLineArgs->ExecuteRemotely()) {
-            input.SetBatchSize(mixer.GetBatchSize());
-        }
-
-        /*** Process the input ***/
-        for (; !input.End(); formatter.ResetScopeHistory()) {
-
-            CRef<CBlastQueryVector> query_batch(input.GetNextSeqBatch(*scope));
-            CRef<IQueryFactory> queries(new CObjMgr_QueryFactory(*query_batch));
-
-            SaveSearchStrategy(args, m_CmdLineArgs, queries, opts_hndl);
-
-            CRef<CSearchResultSet> results;
-
-            if (m_CmdLineArgs->ExecuteRemotely()) {
-                CRef<CRemoteBlast> rmt_blast = 
-                    InitializeRemoteBlast(queries, db_args, opts_hndl,
-                          m_CmdLineArgs->ProduceDebugRemoteOutput(),
-                          m_CmdLineArgs->GetClientId());
-                results = rmt_blast->GetResultSet();
+    for (; !input.End();) {
+        TBatch batch(new SQueryBatch());
+        batch->job = job;
+        batch->query.Reset(input.GetNextSeqBatch(*job->scope));
+        if (batch->query->Empty()) continue;
+        batch->factory.Reset(new CObjMgr_QueryFactory(*batch->query));
+        batch->options.Reset(new CBatchOptions(opt));
+        SaveSearchStrategy(*job->args, job->command, batch->factory, batch->options);
+        batch->index = ++job->submitted;
+        if (BatchTrace())
+            std::fprintf(stderr, "GBLASTN_BATCH query=\"%s\" index=%zu stage=submitted\n",
+                         job->name.c_str(), batch->index);
+        if (job->command->ExecuteRemotely()) {
+            CRef<CRemoteBlast> remote = InitializeRemoteBlast(batch->factory,
+                job->database, batch->options, job->command->ProduceDebugRemoteOutput(),
+                job->command->GetClientId());
+            batch->results = remote->GetResultSet();
+            FormatBatch(batch);
+        } else {
+            batch->search.reset(new CLocalBlast(batch->factory, batch->options, job->adapter));
+            batch->search->SetNumberOfThreads(job->command->GetNumThreads());
+            if (mode == 1) {
+                batch->results = batch->search->Run();
+                if (!fixed_batch_size)
+                    input.SetBatchSize(mixer.GetBatchSize(batch->search->GetNumExtensions()));
+                FormatBatch(batch);
+                job->formatter->ResetScopeHistory();
             } else {
-                CLocalBlast lcl_blast(queries, opts_hndl, db_adapter);
-                lcl_blast.SetNumberOfThreads(m_CmdLineArgs->GetNumThreads());
-                results = lcl_blast.Run();
-                input.SetBatchSize(mixer.GetBatchSize(lcl_blast.GetNumExtensions()));
-            }
-
-            if (fmt_args->ArchiveFormatRequested(args)) {
-                formatter.WriteArchive(*queries, *opts_hndl, *results);
-            } else {
-                BlastFormatter_PreFetchSequenceData(*results, scope);
-                ITERATE(CSearchResultSet, result, *results) {
-                    formatter.PrintOneResultSet(**result, query_batch);
-                }
+                pipeline.Submit(batch);
             }
         }
-
-        formatter.PrintEpilog(opt);
-
-        if (m_CmdLineArgs->ProduceDebugOutput()) {
-            opts_hndl->GetOptions().DebugDumpText(NcbiCerr, "BLAST options", 1);
-        }
-
-    } CATCH_ALL(status)
-    return status;
+    }
+    if (job->submitted == 0)
+        throw std::runtime_error("G-BLASTN: query contains no usable sequences: " + job->name);
+    job->sealed = true;
+    job->FinishIfReady();
+    if (mode == 0) pipeline.Drain();
 }
-#endif
 
 int CBlastnApp::Run()
 {
-	int status = BLAST_EXIT_SUCCESS;
-
-	__int64 c1 = slogfile.Start();
-	try {
-
-		// Allow the fasta reader to complain on invalid sequence input
-		SetDiagPostLevel(eDiag_Warning);
-
-		/*** Get the BLAST options ***/
-		const CArgs& args = GetArgs();
-		CRef<CBlastOptionsHandle> opts_hndl;
-		if(RecoverSearchStrategy(args, m_CmdLineArgs)){
-			opts_hndl.Reset(&*m_CmdLineArgs->SetOptionsForSavedStrategy(args));
-		}
-		else {
-			opts_hndl.Reset(&*m_CmdLineArgs->SetOptions(args));
-		}
-
-#if _MSC_VER
-		output = args[kArgOutput].AsString();
-		output = output.substr(0,output.find_last_of("\\")+1);
-#else
-		output = args[kArgOutput].AsString();
-		output = output.substr(0,output.find_last_of("/")+1);
-#endif
-		//cout << "output" <<output << endl;
-
-		string query_name = args[kArgQuery].AsString();
-		string query_list = args[kArgQueryList].AsString();
-
-		string logfilename;
-		if (!query_list.empty())
-		{
-			logfilename = query_list+".log";
-			args[kArgQuery].CloseFile();
-
-		}else
-		{
-			logfilename = query_name +".log";
-		}
-		cout << logfilename <<endl;
-		slogfile.m_file.open(logfilename.c_str(), fstream::out|fstream::app);
-		if (!slogfile.m_file.is_open())
-		{
-			cout << "open log file error!"<<endl;
-		}
-		//////////////////////////////////////////////////////////////////////////
-
-
-		const CBlastOptions& opt = opts_hndl->GetOptions();
-		int initgpus = Blast_gpu_Init(opt.GetUseGpu(), opt.GetGpuID());//BlastMGPUUtil.InitGPUs(opt.GetUseGpu(), opt.GetGpuID());  
-		int method = opt.GetMethod();
-
-	///// CHANGED /////
-		if (opt.GetConverted())
-		{
-			string dbname = args[kArgDb].AsString();
-			//char* table_filename = "converted_human.1-8.wm.table";
-			string table_name = dbname+".table";
-			//rdsmap = new NewRecordsMap(table_name);
-		}
-	///// CHANGED /////
-
-		switch(method)
-		{
-		case 0:
-			status = Method2(opt);
-			break;
-		case 1:
-			status = Method1(opt);
-			break;
-		case 2:
-			status = Method3(opt);
-			break;
-		}
-
-#if MULTI_QUERIES	 
-		gpu_ReleaseDBMemory();
-#endif
-		Blast_gpu_Release();//BlastMGPUUtil.ReleaseGPUs();
-
-		slogfile.printTotalNameBySteps();
-		slogfile.m_file.close();
-
-	} CATCH_ALL(status)
-		return status;
-}
-
-int CBlastnApp::Method1_opt(string job_name)
-{
-	int status = BLAST_EXIT_SUCCESS;
-
-	try {
-
-		__int64 c1 = slogfile.Start();
-		__int64 c_start = slogfile.NewStart(true);
-		// Allow the fasta reader to complain on invalid sequence input
-		//SetDiagPostLevel(eDiag_Warning);
-
-		/*** Get the BLAST options ***/
-		CArgs& args = GetArgs();
-		CRef<CBlastOptionsHandle> opts_hndl;
-		if(RecoverSearchStrategy(args, m_CmdLineArgs)){
-			opts_hndl.Reset(&*m_CmdLineArgs->SetOptionsForSavedStrategy(args));
-		}
-		else {
-			opts_hndl.Reset(&*m_CmdLineArgs->SetOptions(args));
-		}
-		const CBlastOptions& opt = opts_hndl->GetOptions();
-
-		/*** Initialize the database/subject ***/
-		CRef<CBlastDatabaseArgs> db_args(m_CmdLineArgs->GetBlastDatabaseArgs());
-		CRef<CLocalDbAdapter> db_adapter;
-		CRef<CScope> scope;
-		InitializeSubject(db_args, opts_hndl, m_CmdLineArgs->ExecuteRemotely(),
-			db_adapter, scope);
-		_ASSERT(db_adapter && scope);
-
-		/*** Get the query sequence(s) ***/
-		CRef<CQueryOptionsArgs> query_opts = 
-			m_CmdLineArgs->GetQueryOptionsArgs();
-		SDataLoaderConfig dlconfig =
-			InitializeQueryDataLoaderConfiguration(query_opts->QueryIsProtein(),
-			db_adapter);
-		CBlastInputSourceConfig iconfig(dlconfig, query_opts->GetStrand(),
-			query_opts->UseLowercaseMasks(),
-			query_opts->GetParseDeflines(),
-			query_opts->GetRange());
-		iconfig.SetQueryLocalIdMode();
-		CBlastFastaInputSource fasta(m_CmdLineArgs->GetInputStream(), iconfig);
-		CBlastInput input(&fasta, m_CmdLineArgs->GetQueryBatchSize());
-
-		// Initialize the megablast database index now so we can know whether an indexed search will be run.
-		// This is only important for the reference in the report, but would be done anyway.
-		if (opt.GetUseIndex() && !m_CmdLineArgs->ExecuteRemotely()) {
-			CRef<CBlastOptions> my_options(&(opts_hndl->SetOptions()));
-			CSetupFactory::InitializeMegablastDbIndex(my_options);
-		}
-
-		/*** Get the formatting options ***/
-		CRef<CFormattingArgs> fmt_args(m_CmdLineArgs->GetFormattingArgs());
-		CBlastFormat formatter(opt, *db_adapter,
-			fmt_args->GetFormattedOutputChoice(),
-			query_opts->GetParseDeflines(),
-			m_CmdLineArgs->GetInputOutputStream(),//m_CmdLineArgs->GetOutputStream(), //modified by kyzhao 
-			fmt_args->GetNumDescriptions(),
-			fmt_args->GetNumAlignments(),
-			*scope,
-			opt.GetMatrixName(),
-			fmt_args->ShowGis(),
-			fmt_args->DisplayHtmlOutput(),
-			opt.GetQueryGeneticCode(),
-			opt.GetDbGeneticCode(),
-			opt.GetSumStatisticsMode(),
-			m_CmdLineArgs->ExecuteRemotely(),
-			db_adapter->GetFilteringAlgorithm(),
-			fmt_args->GetCustomOutputFormatSpec(),
-			m_CmdLineArgs->GetTask() == "megablast",
-			opt.GetMBIndexLoaded());
-
-
-		formatter.PrintProlog();
-		CBatchSizeMixer mixer(2000000,   // targeted at 2M hits per batch
-			SplitQuery_GetChunkSize(opt.GetProgram())-1000);
-		if (!m_CmdLineArgs->ExecuteRemotely()) {
-			input.SetBatchSize(mixer.GetBatchSize());
-		}
-
-		__int64 c2 = slogfile.End();
-		slogfile.addTotalTime("Before search Prepare_time", c1, c2,false);
-
-		/*** Process the input ***/
-		//int looptimes = 0;
-		for (; !input.End(); formatter.ResetScopeHistory()) {
-
-			//printf("%d\n", looptimes++);
-			c1 = slogfile.Start();
-
-			CRef<CBlastQueryVector> query_batch(input.GetNextSeqBatch(*scope));
-			CRef<IQueryFactory> queries(new CObjMgr_QueryFactory(*query_batch));
-
-			SaveSearchStrategy(args, m_CmdLineArgs, queries, opts_hndl);
-
-			CRef<CSearchResultSet> results;
-
-			if (m_CmdLineArgs->ExecuteRemotely()) {
-				CRef<CRemoteBlast> rmt_blast = 
-					InitializeRemoteBlast(queries, db_args, opts_hndl,
-					m_CmdLineArgs->ProduceDebugRemoteOutput(),
-					m_CmdLineArgs->GetClientId());
-				results = rmt_blast->GetResultSet();
-			} else {
-				CLocalBlast lcl_blast(queries, opts_hndl, db_adapter);
-				size_t cpu_threads = m_CmdLineArgs->GetNumThreads();
-
-				lcl_blast.SetNumberOfThreads( cpu_threads);
-				//////////////////////////////////////////////////////////////////////////
-				//pre_time
-				c2 = slogfile.End();
-				slogfile.addTotalTime("each prepare time",c1, c2, false);
-				//////////////////////////////////////////////////////////////////////////
-				c1 = slogfile.NewStart(true);
-				results = lcl_blast.Run();
-				c2 = slogfile.NewEnd(true);
-				slogfile.addTotalTime("total search_time", c1, c2, false);
-				double total_time = slogfile.elaplsedTime(c1, c2);
-				cout << total_time <<"\t";
-				input.SetBatchSize(mixer.GetBatchSize(lcl_blast.GetNumExtensions()));
-			}
-
-			//////////////////////////////////////////////////////////////////////////
-
-			c1 = slogfile.Start();
-			//////////////////////////////////////////////////////////////////////////
-
-			if (fmt_args->ArchiveFormatRequested(args)) {
-				formatter.WriteArchive(*queries, *opts_hndl, *results);
-			} else {
-				BlastFormatter_PreFetchSequenceData(*results, scope);
-				ITERATE(CSearchResultSet, result, *results) {
-					formatter.PrintOneResultSet(**result, query_batch);
-
-					CConstRef<CSeq_align_set> aln_set = (**result).GetSeqAlign();
-					size_t num_hits = aln_set->Get().size();
-					slogfile.addTotalNum("Final hits", (long)num_hits,false);         
-					//////////////////////////////////////////////////////////////////////////
-				}
-			}
-			__int64 c2 = slogfile.End();
-			//////////////////////////////////////////////////////////////////////////
-			slogfile.addTotalTime("print_time",c1, c2, false);
-
-		}
-		/*if (opt.GetConverted())
-		{
-			string outfilename = args[kArgOutput].AsString();
-			args[kArgOutput].CloseFile();
-			FormatResult(outfilename);
-		}*/
-		__int64 t_end = slogfile.NewEnd(true);
-		double total_time = slogfile.elaplsedTime(c_start, t_end);
-		slogfile.addTotalTime("Total Time", total_time, false);
-		slogfile.m_file<< job_name <<"\t";
-		slogfile.printTotalBySteps();
-		slogfile.reset();
-
-		formatter.PrintEpilog(opt);
-
-		if (m_CmdLineArgs->ProduceDebugOutput()) {
-			opts_hndl->GetOptions().DebugDumpText(NcbiCerr, "BLAST options", 1);
-		}
-		//if (opt.GetConverted())
-		//{
-		//	string outfilename = args[kArgOutput].AsString();
-		//	args[kArgOutput].CloseFile();
-		//	FormatResult(outfilename);
-		//}
-
-
-	} CATCH_ALL(status)
-		return status;
-}
-
-int CBlastnApp::Method1(const CBlastOptions& opt)
-{
-	int status = 0;
-	string query_list_fname = opt.GetQueryList();
-	if (query_list_fname.empty())
-	{
-		return Method1_opt("");
-	}
-	else
-	{
-		fstream query_list(query_list_fname.c_str());
-		string line;
-		if (query_list.is_open())
-		{
-			unsigned long total_jobs = 0;
-			unsigned long total_works = 0;
-			while (query_list.good())
-			{
-				getline(query_list,line);
-
-				if (!line.empty())
-				{
-					total_jobs++;
-					cout << line << endl;
-					/*** Get the BLAST options ***/
-					CArgs& args = GetArgs();
-					//args[kArgOutput].CloseFile();
-					args[kArgQuery].CloseFile();
-
-					CArgDescriptions* arg_desc = m_CmdLineArgs->SetCommandLine();
-					unsigned int n_plain = kMax_UInt;
-					arg_desc->x_CreateArg("-query",true,line,&n_plain, args, true);
-#if _MSC_VER
-					string name = line.substr(line.find_last_of("\\")+1, line.length());
-#else
-					string name = line.substr(line.find_last_of("/")+1, line.length());
-#endif
-					//string outputfile = output+name+".out";
-					//cout << "name:" <<outputfile <<endl;
-					arg_desc->x_CreateArg("-out",true, output + name +".out",&n_plain, args, true);
-
-					status = Method1_opt(name);
-				}
-			}
-			query_list.close();
-		}
-	}
-	return status;
-}
-
-int CBlastnApp::Method2_opt(string job_name)
-{
-	int status = BLAST_EXIT_SUCCESS; 
-
-	try {
-
-		__int64 c1_1,c1;
-		c1 = slogfile.Start();
-		c1_1 = slogfile.NewStart(true);;
-
-		const CArgs& args = GetArgs();
-
-		CRef<CBlastnAppArgs> lm_CmdLineArgs;
-		lm_CmdLineArgs.Reset(m_CmdLineArgs);
-
-		CRef<CBlastOptionsHandle> opts_hndl;
-		if(RecoverSearchStrategy(args, lm_CmdLineArgs)){
-			opts_hndl.Reset(&*lm_CmdLineArgs->SetOptionsForSavedStrategy(args));
-		}
-		else {
-			opts_hndl.Reset(&*lm_CmdLineArgs->SetOptions(args));
-		}
-		const CBlastOptions& opt = opts_hndl->GetOptions();
-
-		///*** Initialize the database/subject ***/
-
-		CRef<CBlastDatabaseArgs> db_args(lm_CmdLineArgs->GetBlastDatabaseArgs());
-		CRef<CLocalDbAdapter> db_adapter;
-		CRef<CScope> scope;
-		InitializeSubject(db_args, opts_hndl, lm_CmdLineArgs->ExecuteRemotely(),
-			db_adapter, scope);
-		_ASSERT(db_adapter && scope);
-
-		// Initialize the megablast database index now so we can know whether an indexed search will be run.
-		// This is only important for the reference in the report, but would be done anyway.
-		if (opt.GetUseIndex() && !lm_CmdLineArgs->ExecuteRemotely()) {
-			BlastSeqSrc* seqsrc = db_adapter->MakeSeqSrc();
-			CRef<CBlastOptions> my_options(&(opts_hndl->SetOptions()));
-			CSetupFactory::InitializeMegablastDbIndex(my_options);
-		}
-		/************************************************************************/
-		/*                                                                      */
-		/************************************************************************/
-
-		/*** Get the query sequence(s) ***/
-		CRef<CQueryOptionsArgs> query_opts = lm_CmdLineArgs->GetQueryOptionsArgs();
-		SDataLoaderConfig dlconfig(query_opts->QueryIsProtein()); 
-		dlconfig.OptimizeForWholeLargeSequenceRetrieval(); 
-		CBlastInputSourceConfig iconfig(dlconfig, query_opts->GetStrand(), 
-			query_opts->UseLowercaseMasks(),
-			query_opts->GetParseDeflines(),
-			query_opts->GetRange(),
-			!lm_CmdLineArgs->ExecuteRemotely());
-		iconfig.SetQueryLocalIdMode();
-
-		CBlastFastaInputSource fasta(lm_CmdLineArgs->GetInputStream(), iconfig);
-		CBlastInput input(&fasta, lm_CmdLineArgs->GetQueryBatchSize());
-
-		/*** Get the formatting options ***/
-		CRef<CFormattingArgs> fmt_args(lm_CmdLineArgs->GetFormattingArgs());
-		/*** Get the formatting options ***/
-		CBlastFormat formatter(opt, *db_adapter,
-			fmt_args->GetFormattedOutputChoice(),
-			query_opts->GetParseDeflines(),
-			//lm_CmdLineArgs->GetOutputStream(),
-			m_CmdLineArgs->GetInputOutputStream(),//m_CmdLineArgs->GetOutputStream(), //modified by kyzhao 
-			fmt_args->GetNumDescriptions(),
-			fmt_args->GetNumAlignments(),
-			*scope,
-			opt.GetMatrixName(),
-			fmt_args->ShowGis(),
-			fmt_args->DisplayHtmlOutput(),
-			opt.GetQueryGeneticCode(),
-			opt.GetDbGeneticCode(),
-			opt.GetSumStatisticsMode(),
-			lm_CmdLineArgs->ExecuteRemotely(),
-			db_adapter->GetFilteringAlgorithm(),
-			fmt_args->GetCustomOutputFormatSpec(),
-			lm_CmdLineArgs->GetTask() == "megablast",
-			opt.GetMBIndexLoaded());
-
-
-		formatter.PrintProlog();
-		CBatchSizeMixer mixer(2000000,   // targeted at 2M hits per batch
-			SplitQuery_GetChunkSize(opt.GetProgram())-1000);
-		if (!m_CmdLineArgs->ExecuteRemotely()) {
-			input.SetBatchSize(mixer.GetBatchSize());
-		}
-
-		__int64 c2 = slogfile.End();
-		slogfile.addTotalTime("Before search Prepare_time", c1, c2,false);
-
-		/*** Process the input ***/
-		size_t cpu_threads = lm_CmdLineArgs->GetNumThreads();
-		bool is_archive = fmt_args->ArchiveFormatRequested(args);
-		int k = 0;
-		for (; !input.End();) {
-			c1 = slogfile.Start();
-
-			CRef<CBlastQueryVector> query_batch (input.GetNextSeqBatch(*scope));
-			CRef<IQueryFactory> queries(new CObjMgr_QueryFactory(*query_batch));
-
-			SaveSearchStrategy(args, lm_CmdLineArgs, queries, opts_hndl);			
-			CLocalBlast* lcl_blast = new CLocalBlast(queries, opts_hndl, db_adapter);
-
-			//////////////////////////////////////////////////////////////////////////
-			//pre_time
-			c2 = slogfile.End();
-			slogfile.addTotalTime("each prepare time",c1, c2, false);
-
-			work_item * item = new work_item();
-			item->query_batch = query_batch;
-			item->queries = queries;
-			item->m_lbast = lcl_blast;
-			//item->initgpus = initgpus;
-			//item->is_gpuonly = isgpuonly;
-			item->cpu_threads = cpu_threads;
-
-			item->formatter = &formatter;
-			item->is_archive = is_archive;
-			item->scope = scope;
-			item->opts_hndl = opts_hndl;
-
-			query_queue->add(item);
-			k++;
-		}
-
-		PrintThread* p_print_thread = (PrintThread*)&print_thread[0];
-		while (p_print_thread->GetProcessNum() != k)
-		{
-			//cout << ".";
-#ifdef __linux__
-			usleep(3);
-#endif
-		}
-		//					cout << endl;
-		__int64 c2_1 = slogfile.NewEnd(true);
-		double total_time = slogfile.elaplsedTime(c1_1, c2_1);
-		slogfile.addTotalTime("Total Time", total_time, false);
-		slogfile.m_file<< job_name <<"\t";
-		slogfile.printTotalBySteps();
-		slogfile.reset();
-
-		p_print_thread->ResetProcessNum();
-
-		formatter.PrintEpilog(opt);								  
-		if (lm_CmdLineArgs->ProduceDebugOutput()) {
-			opts_hndl->GetOptions().DebugDumpText(NcbiCerr, "BLAST options", 1);
-		}
-
-		//if (opt.GetConverted())
-		//{
-		//	string outfilename = args[kArgOutput].AsString();
-		//	args[kArgOutput].CloseFile();
-		//	FormatResult(outfilename);
-		//}
-
-	} CATCH_ALL(status)
-		return status;
-}
-// version before 2013.8.7
-int CBlastnApp::Method2(const CBlastOptions& opt)
-{
-	int status = BLAST_EXIT_SUCCESS;
-
-	try {
-
-		int prelim_num = opt.GetPrelimNum();
-		int trace_num = opt.GetTraceNum();
-		int print_num = opt.GetPrintNum();
-
-		//////////////////////////////////////////////////////////////////////////
-		query_queue = new work_queue<work_item*>;
-		prelim_queue = new work_queue<work_item*>;
-		result_queue = new work_queue<work_item*>;
-
-
-		prelim_thread = new PrelimSearchThread[prelim_num];
-		trace_thread = new TraceBackThread[trace_num];
-		print_thread = new PrintThread[print_num];
-
-
-		for (int i = 0; i < prelim_num; i++)
-		{
-			prelim_thread[i].InitQueue(query_queue, prelim_queue);
-			prelim_thread[i].start();
-		}
-
-		for (int i = 0; i < trace_num; i++)
-		{
-			trace_thread[i].InitQueue(prelim_queue, result_queue);
-			trace_thread[i].start();
-		}
-
-		for (int i = 0; i < print_num; i++)
-		{
-			PrintThread* p = (PrintThread*)&print_thread[i];
-			p->InitQueue(result_queue);
-			print_thread[i].start();
-		}
-
-		string query_list_fname = opt.GetQueryList();
-		if (query_list_fname.empty())
-		{
-			return Method2_opt("");
-		}
-		else
-		{
-			fstream query_list(query_list_fname.c_str());
-			string line;
-			if (query_list.is_open())
-			{
-				unsigned long total_jobs = 0;
-				while (query_list.good())
-				{
-					getline(query_list,line);
-
-					if (!line.empty())
-					{
-						total_jobs++;
-						cout << line << endl;
-						/*** Get the BLAST options ***/
-						CArgs& args = GetArgs();
-
-						//args[kArgOutput].CloseFile();
-						args[kArgQuery].CloseFile();
-
-						CArgDescriptions* arg_desc = m_CmdLineArgs->SetCommandLine();
-						unsigned int n_plain = kMax_UInt;
-						arg_desc->x_CreateArg("-query",true,line,&n_plain, args, true);
-
-#if _MSC_VER
-						string name = line.substr(line.find_last_of("\\")+1, line.length());
-#else
-						string name = line.substr(line.find_last_of("/")+1, line.length());
-#endif
-						//cout << "name:" << name <<endl;;
-						arg_desc->x_CreateArg("-out",true, output + name +".out",&n_plain, args, true);
-
-						Method2_opt(name);
-					}
-				}
-				query_list.close();
-			}
-		}
-
-		for (int i = 0; i < prelim_num; i++)
-		{
-			prelim_thread[i].stop();
-			//prelim_thread[i].join();
-		}
-
-		for (int i = 0; i < trace_num; i++)
-		{
-			trace_thread[i].stop();
-			//trace_thread[i].join();
-		}
-		for (int i = 0; i < print_num; i++)
-		{
-			print_thread[i].stop();
-			//print_thread[i].join();
-		}
-	} CATCH_ALL(status)
-		return status;
-}
-
-//query pipline version
-int CBlastnApp::Method3_opt(string job_name)
-{
-	int status = BLAST_EXIT_SUCCESS;
-
-	try
-	{
-		JobItem* job_item = new JobItem();
-		job_item->current_work_num = 0;
-
-		__int64 c1 = slogfile.NewStart(true);
-		job_item->start_time = c1;
-
-		CArgs& args = GetArgs();
-		CArgs * p_args = new CArgs(args);
-		job_item->p_args = p_args;
-		CRef<CBlastnAppArgs> lm_CmdLineArgs;
-		lm_CmdLineArgs.Reset(m_CmdLineArgs);
-
-		CRef<CBlastOptionsHandle> opts_hndl;
-		if(RecoverSearchStrategy(args, lm_CmdLineArgs)){
-			opts_hndl.Reset(&*lm_CmdLineArgs->SetOptionsForSavedStrategy(args));
-		}
-		else {
-			opts_hndl.Reset(&*lm_CmdLineArgs->SetOptions(args));
-		}
-		const CBlastOptions& opt = opts_hndl->GetOptions();
-
-		///*** Initialize the database/subject ***/
-		CRef<CBlastDatabaseArgs> db_args(lm_CmdLineArgs->GetBlastDatabaseArgs());
-		CRef<CLocalDbAdapter> db_adapter;
-		CRef<CScope> scope;
-		InitializeSubject(db_args, opts_hndl, lm_CmdLineArgs->ExecuteRemotely(),
-			db_adapter, scope);
-		_ASSERT(db_adapter && scope);
-
-		// Initialize the megablast database index now so we can know whether an indexed search will be run.
-		// This is only important for the reference in the report, but would be done anyway.
-		if (opt.GetUseIndex() && !lm_CmdLineArgs->ExecuteRemotely()) {
-			BlastSeqSrc* seqsrc = db_adapter->MakeSeqSrc();
-			CRef<CBlastOptions> my_options(&(opts_hndl->SetOptions()));
-			CSetupFactory::InitializeMegablastDbIndex(my_options);
-		}
-		/************************************************************************/
-		/*                                                                      */
-		/************************************************************************/
-
-		/*** Get the query sequence(s) ***/
-		CRef<CQueryOptionsArgs> query_opts = lm_CmdLineArgs->GetQueryOptionsArgs();
-		SDataLoaderConfig dlconfig(query_opts->QueryIsProtein()); 
-		dlconfig.OptimizeForWholeLargeSequenceRetrieval(); 
-		CBlastInputSourceConfig iconfig(dlconfig, query_opts->GetStrand(), 
-			query_opts->UseLowercaseMasks(),
-			query_opts->GetParseDeflines(),
-			query_opts->GetRange(),
-			!lm_CmdLineArgs->ExecuteRemotely());
-		iconfig.SetQueryLocalIdMode();
-
-		CBlastFastaInputSource fasta(lm_CmdLineArgs->GetInputStream(), iconfig);
-		CBlastInput input(&fasta, lm_CmdLineArgs->GetQueryBatchSize());
-
-		/*** Get the formatting options ***/
-		CRef<CFormattingArgs> fmt_args(lm_CmdLineArgs->GetFormattingArgs());
-		/*** Get the formatting options ***/
-		CBlastFormat* formatter = new CBlastFormat(opt, *db_adapter,
-			fmt_args->GetFormattedOutputChoice(),
-			query_opts->GetParseDeflines(),
-			m_CmdLineArgs->GetInputOutputStream(),//m_CmdLineArgs->GetOutputStream(), //modified by kyzhao 
-			fmt_args->GetNumDescriptions(),
-			fmt_args->GetNumAlignments(),
-			*scope,
-			opt.GetMatrixName(),
-			fmt_args->ShowGis(),
-			fmt_args->DisplayHtmlOutput(),
-			opt.GetQueryGeneticCode(),
-			opt.GetDbGeneticCode(),
-			opt.GetSumStatisticsMode(),
-			lm_CmdLineArgs->ExecuteRemotely(),
-			db_adapter->GetFilteringAlgorithm(),
-			fmt_args->GetCustomOutputFormatSpec(),
-			lm_CmdLineArgs->GetTask() == "megablast",
-			opt.GetMBIndexLoaded());
-
-		//cout << "formatter 1:" << formatter <<" out "<< lm_CmdLineArgs->GetOutputStream() << endl;
-		formatter->PrintProlog();
-		CBatchSizeMixer mixer(2000000,   // targeted at 2M hits per batch
-			SplitQuery_GetChunkSize(opt.GetProgram())-1000);
-		if (!m_CmdLineArgs->ExecuteRemotely()) {
-			input.SetBatchSize(mixer.GetBatchSize());
-		}
-		//__int64 c2 = slogfile.End();
-		//slogfile.addTotalTime("Before search Prepare_time", c1, c2,false);
-
-		/*** Process the input ***/
-		size_t cpu_threads = lm_CmdLineArgs->GetNumThreads();
-		bool is_archive = fmt_args->ArchiveFormatRequested(args);
-		int k = 0;
-		//int looptimes = 0;	
-
-		for (; !input.End(); /*formatter.ResetScopeHistory()*/) {
-			//	printf("%d\n", looptimes++);
-			//c1 = slogfile.Start();
-
-			CRef<CBlastQueryVector> query_batch (input.GetNextSeqBatch(*scope));
-			CRef<IQueryFactory> queries(new CObjMgr_QueryFactory(*query_batch));
-
-			SaveSearchStrategy(args, lm_CmdLineArgs, queries, opts_hndl);			
-			CLocalBlast* lcl_blast = new CLocalBlast(queries, opts_hndl, db_adapter);
-
-			//////////////////////////////////////////////////////////////////////////
-			//pre_time
-			//c2 = slogfile.End();
-			//slogfile.addTotalTime("each prepare time",c1, c2, false);
-
-			work_item * item = new work_item();
-			item->query_batch = query_batch;
-			item->queries = queries;
-			item->m_lbast = lcl_blast;
-			//item->initgpus = initgpus;
-
-			item->cpu_threads = cpu_threads;
-			item->formatter = formatter;
-			item->is_archive = is_archive;
-			item->scope = scope;
-			item->opts_hndl = opts_hndl;
-
-			item->p_job_item = job_item;
-
-			query_queue->add(item);
-			k++;
-		}
-		//////////////////////////////////////////////////////////////////////////
-		//put job into job queue
-		job_item->work_num = k;
-		job_item->db_args= db_args;
-		job_item->jobname = job_name;
-		job_item->db_adapter = db_adapter;
-		job_item->fmt_args = fmt_args;
-		job_item->lm_CmdLineArgs = lm_CmdLineArgs;
-		job_item->opts_hndl = opts_hndl;
-		job_item->query_opts = query_opts;
-		job_item->scope =scope;
-		job_item->formatter = formatter;
-
-		job_queue->add(job_item);
-
-	}CATCH_ALL(status)
-		return status; 
-}
-int CBlastnApp::Method3(const CBlastOptions& opt)
-{
-	int status = BLAST_EXIT_SUCCESS;
-
-
-	try {
-		__int64 c1_1 = slogfile.NewStart(true);
-
-		int prelim_num = opt.GetPrelimNum();
-		int trace_num = opt.GetTraceNum();
-		int print_num = opt.GetPrintNum();
-
-		//cout << "prelim:" << prelim_num << " trace:" << trace_num << "print:" << print_num << endl;
-		//////////////////////////////////////////////////////////////////////////
-		job_queue = new work_queue<JobItem*>;
-		query_queue = new work_queue<work_item*>;
-		prelim_queue = new work_queue<work_item*>;
-		result_queue = new work_queue<work_item*>;
-
-		prelim_thread = new PrelimSearchThread[prelim_num];
-		trace_thread = new TraceBackThread[trace_num];
-		print_thread = new PrintThread_1[print_num];
-
-
-		for (int i = 0; i < prelim_num; i++)
-		{
-			prelim_thread[i].InitQueue(query_queue, prelim_queue);
-			prelim_thread[i].start();
-		}
-
-		for (int i = 0; i < trace_num; i++)
-		{
-			trace_thread[i].InitQueue(prelim_queue, result_queue);
-			trace_thread[i].start();
-		}
-
-		for (int i = 0; i < print_num; i++)
-		{
-			PrintThread_1* p = (PrintThread_1*)&print_thread[i];
-			p->InitQueue(result_queue);
-			p->SetRecord(rdsmap);
-			p->start();
-		}
-
-		string query_list_fname = opt.GetQueryList();
-		if (query_list_fname.empty())
-		{
-			return Method3_opt("");
-		}
-		else
-		{
-			fstream query_list(query_list_fname.c_str());
-			string line;
-			if (query_list.is_open())
-			{
-				unsigned long total_jobs = 0;
-				while (query_list.good())
-				{
-					getline(query_list,line);
-
-					if (!line.empty())
-					{
-						total_jobs++;
-						//cout << line << endl;
-						/*** Get the BLAST options ***/
-						CArgs& args = GetArgs();
-
-						//args[kArgOutput].CloseFile();
-						//args[kArgQuery].CloseFile();
-
-						CArgDescriptions* arg_desc = m_CmdLineArgs->SetCommandLine();
-						unsigned int n_plain = kMax_UInt;
-						arg_desc->x_CreateArg("-query",true,line,&n_plain, args, true);
-#if _MSC_VER
-						string name = line.substr(line.find_last_of("\\")+1, line.length());
-#else
-						string name = line.substr(line.find_last_of("/")+1, line.length());
-#endif
-						arg_desc->x_CreateArg("-out",true, output + name +".out",&n_plain, args, true);
-
-						Method3_opt(name);
-					}
-				}
-				query_list.close();
-
-				PrintThread_1* p = (PrintThread_1*)&print_thread[0];
-
-				while (p->GetTotalJobNum() != total_jobs)
-				{
-#ifdef __linux__
-					usleep(3);
-#endif
-				}
-			}
-		}
-
-		for (int i = 0; i < prelim_num; i++)
-		{
-			prelim_thread[i].stop();
-			//prelim_thread[i].join();
-		}
-
-		for (int i = 0; i < trace_num; i++)
-		{
-			trace_thread[i].stop();
-			//trace_thread[i].join();
-		}
-		for (int i = 0; i < print_num; i++)
-		{
-			print_thread[i].stop();
-			//print_thread[i].join();
-		}
-
-		__int64 t_end = slogfile.NewEnd(true);
-		//slogfile.m_file << "Total" << "\t" << slogfile.elaplsedTime(c1_1, t_end) <<endl;
-		double total_time = slogfile.elaplsedTime(c1_1, t_end);
-		//slogfile.addTotalTime("Total Time", total_time, false);
-		slogfile.m_file<< "Total" <<"\t" << total_time << "\n";
-
-	} CATCH_ALL(status)
-		return status;
+    int status = BLAST_EXIT_SUCCESS;
+    const std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
+    try {
+        SetDiagPostLevel(eDiag_Warning);
+        const CArgs& args = GetArgs();
+        const bool required = args["gpu_required"].AsBoolean();
+        if (required && !args[kArgUseGpu].AsBoolean())
+            throw std::runtime_error("G-BLASTN: -gpu_required true requires -use_gpu true");
+        vector<SQueryPath> paths;
+        if (!args[kArgQueryList].AsString().empty()) {
+            paths = ReadQueryList(args[kArgQueryList].AsString(), args[kArgOutput].AsString());
+            if (args.Exist(kArgInputSearchStrategy) && args[kArgInputSearchStrategy].HasValue())
+                throw std::runtime_error("G-BLASTN: query_list cannot be combined with an imported search strategy");
+        } else if (args[kArgQuery].AsString() != "-" && args[kArgOutput].AsString() != "-" &&
+                   ResolvedPath(args[kArgQuery].AsString()) == ResolvedPath(args[kArgOutput].AsString())) {
+            throw std::runtime_error("G-BLASTN: -out would overwrite the query input");
+        }
+        CRef<CBlastOptionsHandle> options;
+        if (RecoverSearchStrategy(args, m_Command))
+            options.Reset(&*m_Command->SetOptionsForSavedStrategy(args));
+        else
+            options.Reset(&*m_Command->SetOptions(args));
+        // Execution settings are never recovered from an algorithm strategy.
+        CGpuArgs execution_options;
+        execution_options.ExtractAlgorithmOptions(args, options->SetOptions());
+        m_Options = options;
+        const CBlastOptions& opt = options->GetOptions();
+        int mode = opt.GetMethod();
+        if (mode < 0 || mode > 3) throw std::runtime_error("G-BLASTN: invalid -mode; expected 0, 1, 2 or 3");
+        if (mode == 3) mode = 2;
+        if (opt.GetUseGpu() && m_Command->ExecuteRemotely())
+            throw std::runtime_error("G-BLASTN: -use_gpu true requires a local search");
+        if (opt.GetUseGpu() && m_Command->GetTask() != "blastn" && m_Command->GetTask() != "megablast")
+            throw std::runtime_error("G-BLASTN: GPU execution supports blastn and contiguous megablast only");
+        if (opt.GetConverted())
+            throw std::runtime_error("G-BLASTN: converted-database coordinate remapping is unsupported; use an ordinary v4 BLAST database");
+        if (mode != 1 && (opt.GetPrepareNum() != 1 || opt.GetPrelimNum() != 1 ||
+                          opt.GetTraceNum() != 1 || opt.GetPrintNum() != 1))
+            throw std::runtime_error("G-BLASTN: bounded pipeline requires one prepare, preliminary, traceback and print stage; use -num_threads for search parallelism");
+        SGpuSession gpu;
+        Blast_gpu_Init(opt.GetUseGpu(), opt.GetGpuID());
+        std::cerr << "GBLASTN_RUN mode=" << mode << " gpu_required=" << (required ? "true" : "false") << '\n';
+        CQueryPipeline pipeline;
+        if (paths.empty()) {
+            ProcessJob(NULL, mode, pipeline);
+        } else {
+            for (size_t i = 0; i < paths.size(); ++i) {
+                std::fprintf(stderr, "GBLASTN_QUERY input=\"%s\" output=\"%s\"\n",
+                             paths[i].input.c_str(), paths[i].output.c_str());
+                ProcessJob(&paths[i], mode, pipeline);
+            }
+        }
+        pipeline.Drain();
+        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+        std::cerr << "GBLASTN_RUN status=completed elapsed_seconds=" << seconds << '\n';
+    } CATCH_ALL(status)
+    return status;
 }
 
 #ifndef SKIP_DOXYGEN_PROCESSING
-int main(int argc, const char* argv[] /*, const char* envp[]*/)
+int main(int argc, const char* argv[])
 {
-#if (!OPT_TRACEBACK)
-	string logfilename = argv[2];
-	logfilename = "cpu_"+logfilename +".log.txt";
-
-	slogfile.m_file.open(logfilename.c_str(), fstream::out|fstream::app);
-
-	__int64 c1 = slogfile.Start();
-	
-	int ret = CBlastnApp().AppMain(argc, argv, 0, eDS_Default, 0);
-
-	//*************************** added by kyzhao  for gpu log
-	__int64 c2 = slogfile.End();
-	slogfile.addTotalTime("Total Time", c1, c2, false);
-	//*************************** added by kyzhao for gpu logo
-	return ret;
-	//slogfile.m_file << "Total" << ": ";
-#else
-	return CBlastnApp().AppMain(argc, argv, 0, eDS_Default, 0);
-#endif
+    return CBlastnApp().AppMain(argc, argv, 0, eDS_Default, 0);
 }
-#endif /* SKIP_DOXYGEN_PROCESSING */
+#endif

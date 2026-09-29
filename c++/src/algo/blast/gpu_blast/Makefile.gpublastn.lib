@@ -1,0 +1,26 @@
+LIB = gpublastn
+SRC = gpu_logfile gpu_blastn_na_ungapped_v3 gpu_blastn_pre_search_engine \
+      gpu_blast_multi_gpu_utils
+OBJ = gpu_blastn_MB_and_smallNa
+
+CPPFLAGS = $(ORIG_CPPFLAGS) -I$(CUDA_HOME)/include -I$(top_srcdir)/src
+CXXFLAGS = $(FAST_CXXFLAGS) -fPIC
+NVCC_HOST_COMPILER ?= $(CXX)
+NVCCFLAGS ?= -O3 -lineinfo
+# CUDA 13/Thrust requires C++17. The legacy host toolkit uses C++14 separately.
+# BlastContextInfo is marshalled into an explicit GPU layout verified by
+# host/device ABI assertions and a device probe. No --no-align-double is needed.
+GPU_ARCH_FLAGS = -gencode arch=compute_$(CUDA_ARCH),code=sm_$(CUDA_ARCH) \
+                 -gencode arch=compute_$(CUDA_ARCH),code=compute_$(CUDA_ARCH)
+
+libgpublastn.a: gpu_blastn_MB_and_smallNa.o
+
+gpu_blastn_MB_and_smallNa.o: $(srcdir)/gpu_blastn_MB_and_smallNa.cu $(srcdir)/Makefile.gpublastn.lib $(builddir)/Makefile.mk
+	$(NVCC) -ccbin $(NVCC_HOST_COMPILER) -std=c++17 $(NVCCFLAGS) $(GPU_ARCH_FLAGS) \
+	    -Xcompiler -fPIC $(CPPFLAGS) -I$(srcdir) -MMD -MP -MF $@.d -c $< -o $@
+
+-include gpu_blastn_MB_and_smallNa.o.d
+
+clean: clean-cuda
+clean-cuda:
+	$(RM) gpu_blastn_MB_and_smallNa.o gpu_blastn_MB_and_smallNa.o.d

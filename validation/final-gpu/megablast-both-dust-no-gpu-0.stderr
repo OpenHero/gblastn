@@ -1,0 +1,16 @@
+GBLASTN_DEVICE backend=cuda id=0 name="NVIDIA Thor" compute_capability=11.0
+GBLASTN_RUN mode=1 gpu_required=true
+GBLASTN_BATCH query="/work/final-gpu/fixtures/megablast.fa" index=1 stage=submitted
+GBLASTN_DISPATCH branch=megablast subject_length=9999 backend=cpu
+GBLASTN_DISPATCH branch=megablast subject_length=10000 backend=cpu
+GBLASTN_DISPATCH branch=megablast subject_length=10001 backend=cuda
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=556 hits=86
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=86 hits=82
+GBLASTN_DISPATCH branch=megablast subject_length=10003 backend=cuda
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=556 hits=85
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=85 hits=82
+GBLASTN_MEMORY allocated_bytes=40429 peak_bytes=16937622 limit_bytes=1073741824
+GBLASTN_SEARCH preliminary_seconds=0.009818
+GBLASTN_SEARCH traceback_seconds=0.002168
+GBLASTN_BATCH query="/work/final-gpu/fixtures/megablast.fa" index=1 stage=completed
+GBLASTN_RUN status=completed elapsed_seconds=0.178261

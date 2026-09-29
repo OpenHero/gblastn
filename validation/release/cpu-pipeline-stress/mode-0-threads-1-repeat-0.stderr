@@ -1,0 +1,9 @@
+GBLASTN_BACKEND backend=cpu
+GBLASTN_RUN mode=0 gpu_required=false
+GBLASTN_BATCH query="/work/release-no-device/fixtures/small.fa" index=1 stage=submitted
+GBLASTN_BATCH query="/work/release-no-device/fixtures/small.fa" index=2 stage=submitted
+GBLASTN_BATCH query="/work/release-no-device/fixtures/small.fa" index=3 stage=submitted
+GBLASTN_BATCH query="/work/release-no-device/fixtures/small.fa" index=1 stage=completed
+GBLASTN_BATCH query="/work/release-no-device/fixtures/small.fa" index=2 stage=completed
+GBLASTN_BATCH query="/work/release-no-device/fixtures/small.fa" index=3 stage=completed
+GBLASTN_RUN status=completed elapsed_seconds=0.0123259

@@ -111,6 +111,14 @@ extern "C" {
    typedef unsigned int TNCBIAtomicValue;
 #  define NCBI_COUNTER_UNSIGNED 1
 #  define NCBI_COUNTER_ADD(p, d) ((*p) += d)
+#elif defined(__aarch64__) && (defined(__GNUC__) || defined(__clang__))
+/* ARM's weak memory ordering requires real acquire/release operations, not
+   volatile accesses or the old pointer-only mutex fallback. */
+   typedef unsigned int TNCBIAtomicValue;
+#  define NCBI_COUNTER_UNSIGNED 1
+#  define NCBI_COUNTER_USE_BUILTINS 1
+#  define NCBI_COUNTER_ADD(p, d) __atomic_add_fetch((p), (d), __ATOMIC_SEQ_CST)
+#  define NCBI_SWAP_POINTERS(loc, nv) __atomic_exchange_n((loc), (nv), __ATOMIC_SEQ_CST)
 #elif (defined(NCBI_COMPILER_GCC) || defined(NCBI_COMPILER_ICC))  &&  \
   ((defined(__sparc) && !defined(__sparcv9))  ||  \
    ((defined(__i386) || defined(__sparc) || defined(__x86_64))  &&  \

@@ -1,0 +1,204 @@
+GBLASTN_DEVICE backend=cuda id=0 name="NVIDIA Thor" compute_capability=11.0
+GBLASTN_RUN mode=2 gpu_required=true
+GBLASTN_QUERY input="/work/final-gpu/fixtures/small.fa" output="/work/final-gpu/pipeline-2-gpu/small.fa.out"
+GBLASTN_BATCH query="/work/final-gpu/fixtures/small.fa" index=1 stage=submitted
+GBLASTN_QUERY input="/work/final-gpu/fixtures/megablast.fa" output="/work/final-gpu/pipeline-2-gpu/megablast.fa.out"
+GBLASTN_BATCH query="/work/final-gpu/fixtures/megablast.fa" index=1 stage=submitted
+GBLASTN_ABI native_host_size=32 native_host_align=8 native_host_offsets=0,4 native_device_size=32 native_device_align=8 native_device_offsets=0,4 wire_size=8 wire_align=4 wire_offsets=0,4 transferred_fields=verified
+GBLASTN_DISPATCH branch=small subject_length=499999 backend=cpu
+GBLASTN_DISPATCH branch=small subject_length=500000 backend=cpu
+GBLASTN_DISPATCH branch=small subject_length=500001 backend=cuda
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=107
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=107 hits=59
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=88
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=88 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=77
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=77 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=64
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=64 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=94
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=94 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=70
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=70 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=63
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=63 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=76
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=76 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=73
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=73 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=63
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=63 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=79
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=79 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=102
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=102 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=75
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=75 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=78
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=78 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=59
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=59 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=68
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=68 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=1366 hits=72
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=72 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=2 work=588 hits=43
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=2 work=43 hits=11
+GBLASTN_DISPATCH branch=small subject_length=500003 backend=cuda
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=138
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=138 hits=59
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=61
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=61 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=62
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=62 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=81
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=81 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=74
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=74 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=65
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=65 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=57
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=57 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=73
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=73 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=83
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=83 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=81
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=81 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=81
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=81 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=75
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=75 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=75
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=75 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=65
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=65 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=75
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=75 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=88
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=88 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=1366 hits=79
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=79 hits=0
+GBLASTN_KERNEL branch=small phase=scan status=completed subject=3 work=588 hits=37
+GBLASTN_KERNEL branch=small phase=extend status=completed subject=3 work=37 hits=11
+GBLASTN_MEMORY allocated_bytes=162809 peak_bytes=307517 limit_bytes=1073741824
+GBLASTN_DISPATCH branch=megablast subject_length=499999 backend=cuda
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=84
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=84 hits=69
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=15
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=15 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=8
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=8 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=10
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=10 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=9
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=9 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=13
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=13 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=9
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=9 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=11
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=11 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=9
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=9 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=9
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=9 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=2049 hits=11
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=11 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=0 work=1141 hits=19
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=0 work=19 hits=13
+GBLASTN_DISPATCH branch=megablast subject_length=500000 backend=cuda
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=76
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=76 hits=69
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=19
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=19 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=7
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=7 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=20
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=20 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=16
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=16 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=11
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=11 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=11
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=11 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=10
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=10 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=15
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=15 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=4
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=4 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=11
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=11 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=2049 hits=11
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=11 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=1 work=1141 hits=17
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=1 work=17 hits=13
+GBLASTN_DISPATCH branch=megablast subject_length=500001 backend=cuda
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=82
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=82 hits=69
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=13
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=13 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=7
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=7 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=11
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=11 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=8
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=8 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=9
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=9 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=9
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=9 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=15
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=15 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=17
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=17 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=6
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=6 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=2049 hits=14
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=14 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=2 work=1141 hits=19
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=2 work=19 hits=13
+GBLASTN_DISPATCH branch=megablast subject_length=500003 backend=cuda
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=83
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=83 hits=69
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=6
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=6 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=11
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=11 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=9
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=9 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=18
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=18 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=13
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=13 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=12
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=12 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=7
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=7 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=7
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=7 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=2049 hits=13
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=13 hits=0
+GBLASTN_KERNEL branch=megablast phase=scan status=completed subject=3 work=1141 hits=22
+GBLASTN_KERNEL branch=megablast phase=extend status=completed subject=3 work=22 hits=13
+GBLASTN_MEMORY allocated_bytes=167105 peak_bytes=17188574 limit_bytes=1073741824
+GBLASTN_BATCH query="/work/final-gpu/fixtures/small.fa" index=1 stage=completed
+GBLASTN_BATCH query="/work/final-gpu/fixtures/megablast.fa" index=1 stage=completed
+GBLASTN_RUN status=completed elapsed_seconds=0.178578

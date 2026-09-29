@@ -1,0 +1,12 @@
+make: Entering directory '/build/toolkit/build/algo/blast/gpu_blast'
+make (Makefile.gpublastn.lib): Nothing to be done for `export-headers'.
+make -f /build/toolkit/build/Makefile.lib.tmpl srcdir=/src/gblastn/c++/src/algo/blast/gpu_blast TMPL=gpublastn all
+make[1]: Entering directory '/build/toolkit/build/algo/blast/gpu_blast'
+/usr/local/cuda/bin/nvcc -ccbin /usr/bin/g++-13  -std=c++17 -O3 -lineinfo -gencode arch=compute_110,code=sm_110 -gencode arch=compute_110,code=compute_110 \
+    -Xcompiler -fPIC -DNDEBUG   -I/usr/local/cuda/include -D_MT -D_REENTRANT -D_THREAD_SAFE -I/build/toolkit/inc -I/src/gblastn/c++/include  -I/usr/local/cuda/include -I/src/gblastn/c++/src -I/src/gblastn/c++/src/algo/blast/gpu_blast -MMD -MP -MF gpu_blastn_MB_and_smallNa.o.d -c /src/gblastn/c++/src/algo/blast/gpu_blast/gpu_blastn_MB_and_smallNa.cu -o gpu_blastn_MB_and_smallNa.o
+/bin/rm -f libgpublastn.a .libgpublastn.a.stamp
+ar cr libgpublastn.a gpu_logfile.o gpu_blastn_na_ungapped_v3.o gpu_blastn_pre_search_engine.o gpu_blast_multi_gpu_utils.o gpu_blastn_MB_and_smallNa.o 
+/bin/bash /src/gblastn/c++/scripts/common/impl/if_diff.sh ln -f libgpublastn.a /build/toolkit/lib
+ln -f libgpublastn.a /build/toolkit/lib/libgpublastn.a
+make[1]: Leaving directory '/build/toolkit/build/algo/blast/gpu_blast'
+make: Leaving directory '/build/toolkit/build/algo/blast/gpu_blast'

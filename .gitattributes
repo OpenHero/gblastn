@@ -1,0 +1,3 @@
+# Preserve raw validation evidence and collapse generated records in reviews.
+validation/** linguist-generated=true -whitespace
+validation/README.md linguist-generated=false !whitespace

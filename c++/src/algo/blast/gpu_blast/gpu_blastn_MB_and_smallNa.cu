@@ -1,2126 +1,385 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include <helper_cuda.h>
-#include <thrust/device_vector.h>
-#include <thrust/sort.h> // for set
+#include <thrust/device_ptr.h>
+#include <thrust/scan.h>
+#include <algorithm>
+#include <atomic>
+#include <cerrno>
+#include <climits>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
 
 #include <algo/blast/core/blast_nalookup.h>
 #include <algo/blast/core/blast_nascan.h>
 #include <algo/blast/core/blast_util.h>
-#include <algo/blast/core/lookup_wrap.h>         //for MAX_DBSEQ_LEN
-#include <algo/blast/core/blast_gapalign.h>      //for OFFSET_ARRAY_SIZE  
-
+#include <algo/blast/core/blast_gapalign.h>
+#include <algo/blast/gpu_blast/gpu_blastn_MB_and_smallNa.h>
+#include <algo/blast/gpu_blast/gpu_blast_multi_gpu_utils.hpp>
 #include "gpu_blastn_ungapped_extension_functions.h"
 
-#include "gpu_blastn_mb_scan_kernel_v3.cuh"
-#include "gpu_blastn_lookup_hash_kernel_v3.cuh"
-#include "gpu_blastn_mini_extension_kernel_v3.cuh"
+// Only these two fields are consumed by the device. Never memcpy the native
+// BlastContextInfo (which contains Int8 and historically needed --no-align-double).
+struct GpuQueryContext { Int4 query_offset; Int4 query_length; };
+static_assert(sizeof(Int2) == 2 && Int2(-1) < 0, "signed 16-bit lookup required");
+static_assert(sizeof(Int4) == 4 && sizeof(Uint4) == 4, "32-bit coordinates required");
+static_assert(sizeof(GpuQueryContext) == 8 && alignof(GpuQueryContext) == 4,
+              "query-context wire ABI");
+static_assert(offsetof(GpuQueryContext, query_offset) == 0 &&
+              offsetof(GpuQueryContext, query_length) == 4, "query-context offsets");
+static_assert(sizeof(BlastOffsetPair) == 8 && alignof(BlastOffsetPair) == 4,
+              "offset-pair wire ABI");
 
 #include "gpu_blastn_small_scan_kernel_v3.cuh"
-#include "gpu_blastn_small_lookuptable_kernel_v3.cuh"
+#include "gpu_blastn_mb_scan_kernel_v3.cuh"
+#include "gpu_blastn_lookup_hash_kernel_v3.cuh"
 #include "gpu_blastn_small_mini_extension_kernel_v3.cuh"
+#include "gpu_blastn_mini_extension_kernel_v3.cuh"
 
-
-#include <algo/blast/gpu_blast/gpu_logfile.h>
-#include <algo/blast/gpu_blast/gpu_blast_multi_gpu_utils.hpp>
-
-#include <iostream>
-using namespace std;
-
-
-struct cudaScanAuxWrapMultiQueries : public GpuObject  
+namespace {
+void Check(cudaError_t status, const char* operation)
 {
-	BlastOffsetPair* h_offsetPairs;
-	BlastOffsetPair* offsetPairs;
-	BlastOffsetPair* over_offset_pairs;
-	Uint4** subject;
-	Uint4   subject_id;
-	Uint4 *total_hits;
-	Uint4 *over_hits_num;
-	Uint4 *counter;
-	Uint4 *zero;
-};
+    if (status != cudaSuccess) {
+        std::ostringstream out;
+        out << "G-BLASTN CUDA " << operation << ": " << cudaGetErrorString(status);
+        throw std::runtime_error(out.str());
+    }
+}
+#define GPU_CHECK(call) Check((call), #call)
 
-struct OffsetPairCmp {
-	__host__ __device__ 
-		bool operator()(const BlastOffsetPair& bop1,const BlastOffsetPair& bop2)
-	{
-		return bop1.qs_offsets.s_off < bop2.qs_offsets.s_off;
-	}
-};
-
-//////////////////////////////////////////////////////////////////////////
-//multi queries
-//////////////////////////////////////////////////////////////////////////
-
-//static cudaScanAuxWrapMultiQueries cuda_scanMultiDBAuxWrap;
-
-//////////////////////////////////////////////////////////////////////////
-//init database gpu memory
-void InitGPU_DB_Mem(int subject_seq_num, int max_len)
+bool Trace() { const char* v = std::getenv("GBLASTN_GPU_TRACE"); return v && v[0] == '1'; }
+void Completed(const char* branch, const char* phase, int oid, size_t work, size_t hits)
 {
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-
-	if (gpu_obj.m_global == NULL)
-	{
-		//////////////////////////////////////
-		//for short query blastn
-		BlastOffsetPair* h_offsetPairs = new BlastOffsetPair[max_len];
-		//////////////
-
-		Uint4* d_total_hits = NULL;
-		Uint4* d_over_hits_num = NULL;
-		BlastOffsetPair* d_offsetPairs = NULL;
-		BlastOffsetPair* d_over_offsetPairs = NULL;
-		int subject_num = subject_seq_num;
-		Uint4** d_subject = new Uint4*[subject_num]();
-		
-		Uint4* d_counter = NULL;
-		Uint4* d_zero = NULL;
-
-		checkCudaErrors(cudaMalloc((void **)&d_total_hits,sizeof(Uint4)));
-		checkCudaErrors(cudaMalloc((void **)&d_over_hits_num,sizeof(Uint4)));
-		checkCudaErrors(cudaMalloc((void **)&d_offsetPairs, max_len * sizeof(BlastOffsetPair)));
-		checkCudaErrors(cudaMalloc((void **)&d_over_offsetPairs, max_len * sizeof(BlastOffsetPair)));
-		checkCudaErrors(cudaMalloc((void **)&d_counter,3*sizeof(Uint4)));
-		checkCudaErrors(cudaMalloc((void **)&d_zero,3*sizeof(Uint4)));
-
-		checkCudaErrors(cudaMemset(d_zero,0,3*sizeof(Uint4)));
-
-		cudaScanAuxWrapMultiQueries * p_scanMultiDBAuxWrap = new cudaScanAuxWrapMultiQueries();
-		
-		p_scanMultiDBAuxWrap->h_offsetPairs = h_offsetPairs;
-
-		p_scanMultiDBAuxWrap->total_hits = d_total_hits;
-		p_scanMultiDBAuxWrap->over_hits_num = d_over_hits_num;
-		p_scanMultiDBAuxWrap->offsetPairs = d_offsetPairs;
-		p_scanMultiDBAuxWrap->over_offset_pairs = d_over_offsetPairs;	
-		p_scanMultiDBAuxWrap->subject_id = 0;
-		
-		p_scanMultiDBAuxWrap->counter = d_counter;
-		p_scanMultiDBAuxWrap->zero = d_zero;
-
-		p_scanMultiDBAuxWrap->subject = d_subject;
-		for (int i = 0; i < subject_num; i ++)
-		{
-			p_scanMultiDBAuxWrap->subject[i]= NULL;
-		}
-
-		gpu_obj.m_global = p_scanMultiDBAuxWrap;
-	}
+    // Called only after a checked blocking D2H copy in the default stream.
+    // Launch success or allocation alone is deliberately never called completion.
+    if (Trace()) std::fprintf(stderr,
+        "GBLASTN_KERNEL branch=%s phase=%s status=completed subject=%d work=%zu hits=%zu\n",
+        branch, phase, oid, work, hits);
 }
 
-void InitGPUMem_DB_MultiSeq(int subject_seq_num, int max_len)
+size_t AllocationLimit()
 {
-	InitGPU_DB_Mem(subject_seq_num, max_len);
+    const size_t mib = 1024u * 1024u;
+    const char* value = std::getenv("GBLASTN_GPU_MEMORY_LIMIT_MB");
+    if (!value || !*value) return 1024u * mib;
+    char* end = NULL;
+    errno = 0;
+    unsigned long long n = std::strtoull(value, &end, 10);
+    if (errno || *end || n < 16 || n > 16384)
+        throw std::runtime_error("GBLASTN_GPU_MEMORY_LIMIT_MB must be 16..16384");
+    return size_t(n) * mib;
 }
 
+// The process-wide budget includes all active device arrays (and resize peaks).
+// Database subjects are never accumulated in a cache.
+std::atomic<size_t> allocated_bytes(0), peak_bytes(0);
+void ReserveBytes(size_t bytes)
+{
+    size_t prior = allocated_bytes.load();
+    do {
+        if (bytes > AllocationLimit() || prior > AllocationLimit() - bytes)
+            throw std::runtime_error("G-BLASTN GPU memory budget exhausted; adjust GBLASTN_GPU_MEMORY_LIMIT_MB");
+    } while (!allocated_bytes.compare_exchange_weak(prior, prior + bytes));
+    size_t peak = peak_bytes.load();
+    while (peak < prior + bytes && !peak_bytes.compare_exchange_weak(peak, prior + bytes)) {}
+}
+template<class T> class DeviceArray {
+public:
+    T* ptr;
+    size_t size;
+    DeviceArray() : ptr(NULL), size(0) {}
+    ~DeviceArray() { if (ptr) { cudaFree(ptr); allocated_bytes.fetch_sub(size * sizeof(T)); } } // destructors never throw
+    DeviceArray(const DeviceArray&) = delete;
+    DeviceArray& operator=(const DeviceArray&) = delete;
+    void resize(size_t count) {
+        if (count == size) return;
+        if (count > AllocationLimit() / sizeof(T))
+            throw std::runtime_error("G-BLASTN GPU allocation exceeds GBLASTN_GPU_MEMORY_LIMIT_MB");
+        T* fresh = NULL;
+        if (count) {
+            ReserveBytes(count * sizeof(T));
+            cudaError_t status = cudaMalloc(reinterpret_cast<void**>(&fresh), count * sizeof(T));
+            if (status != cudaSuccess) { allocated_bytes.fetch_sub(count * sizeof(T)); Check(status, "cudaMalloc"); }
+        }
+        if (ptr) {
+            cudaError_t e = cudaFree(ptr);
+            if (e != cudaSuccess) {
+                if (fresh) { cudaFree(fresh); allocated_bytes.fetch_sub(count * sizeof(T)); }
+                Check(e, "cudaFree");
+            }
+            allocated_bytes.fetch_sub(size * sizeof(T));
+        }
+        ptr = fresh; size = count;
+    }
+    void upload(const T* source, size_t count) {
+        resize(count);
+        if (count) GPU_CHECK(cudaMemcpy(ptr, source, count * sizeof(T), cudaMemcpyHostToDevice));
+    }
+};
+
+struct ScanMemory : GpuObject {
+    DeviceArray<Uint1> subject;
+    DeviceArray<BlastOffsetPair> hits, extended;
+    DeviceArray<Uint4> counts, prefix, error;
+    int oid;
+    Int4 length;
+    Int8 cumulative_hits;
+    const Uint1* source;
+    ScanMemory() : oid(-1), length(-1), cumulative_hits(0), source(NULL) { error.resize(1); }
+    void load(const BLAST_SequenceBlk* sequence) {
+        if (sequence->length < 0 || !sequence->sequence)
+            throw std::runtime_error("G-BLASTN invalid subject sequence");
+        if (source == sequence->sequence && oid == sequence->oid && length == sequence->length) return;
+        // ceil(length/4) retains partial final bytes. Four zero pad bytes support
+        // the original mini-extension's bounded four-base comparisons at tails.
+        size_t bytes = (size_t(sequence->length) + 3) / 4;
+        subject.resize(bytes + 4);
+        GPU_CHECK(cudaMemset(subject.ptr, 0, subject.size));
+        if (bytes) GPU_CHECK(cudaMemcpy(subject.ptr, sequence->sequence, bytes, cudaMemcpyHostToDevice));
+        source = sequence->sequence; oid = sequence->oid; length = sequence->length;
+    }
+};
+struct QueryMemory : GpuObject {
+    DeviceArray<Int2> backbone, overflow;
+    DeviceArray<Int4> hash, next;
+    DeviceArray<Uint1> query;
+    DeviceArray<GpuQueryContext> contexts;
+};
+GpuData& Data() {
+    GpuHandle* handle = BlastMGPUUtil.GetCurrentGPUHandle();
+    if (!handle) throw std::runtime_error("G-BLASTN GPU callback has no device lease");
+    return handle->Data;
+}
+ScanMemory& Scan() {
+    if (!Data().m_global) throw std::runtime_error("G-BLASTN scan memory not initialized");
+    return *static_cast<ScanMemory*>(Data().m_global);
+}
+QueryMemory& Query() {
+    if (!Data().m_local) throw std::runtime_error("G-BLASTN query memory not initialized");
+    return *static_cast<QueryMemory*>(Data().m_local);
+}
+
+__global__ void gpu_context_layout(Uint4* result, const GpuQueryContext* context,
+                                   Int4 last)
+{
+    result[0] = sizeof(GpuQueryContext); result[1] = alignof(GpuQueryContext);
+    result[2] = offsetof(GpuQueryContext, query_offset);
+    result[3] = offsetof(GpuQueryContext, query_length);
+    result[4] = sizeof(BlastContextInfo); result[5] = alignof(BlastContextInfo);
+    result[6] = offsetof(BlastContextInfo, query_offset);
+    result[7] = offsetof(BlastContextInfo, query_length);
+    result[8] = context[0].query_offset; result[9] = context[0].query_length;
+    result[10] = context[last].query_offset; result[11] = context[last].query_length;
+}
+void VerifyContextABI(const std::vector<GpuQueryContext>& host, QueryMemory& q)
+{
+    DeviceArray<Uint4> result; result.resize(12);
+    gpu_context_layout<<<1,1>>>(result.ptr, q.contexts.ptr, Int4(host.size()-1));
+    GPU_CHECK(cudaGetLastError());
+    Uint4 layout[12];
+    GPU_CHECK(cudaMemcpy(layout, result.ptr, sizeof(layout), cudaMemcpyDeviceToHost));
+    if (layout[0] != sizeof(GpuQueryContext) || layout[1] != alignof(GpuQueryContext) ||
+        layout[2] != 0 || layout[3] != 4 ||
+        layout[8] != Uint4(host.front().query_offset) || layout[9] != Uint4(host.front().query_length) ||
+        layout[10] != Uint4(host.back().query_offset) || layout[11] != Uint4(host.back().query_length))
+        throw std::runtime_error("G-BLASTN host/device query-context ABI verification failed");
+    if (Trace()) std::fprintf(stderr,
+        "GBLASTN_ABI native_host_size=%zu native_host_align=%zu native_host_offsets=%zu,%zu "
+        "native_device_size=%u native_device_align=%u native_device_offsets=%u,%u "
+        "wire_size=%u wire_align=%u wire_offsets=%u,%u transferred_fields=verified\n",
+        sizeof(BlastContextInfo), alignof(BlastContextInfo), offsetof(BlastContextInfo, query_offset),
+        offsetof(BlastContextInfo, query_length), layout[4], layout[5], layout[6], layout[7],
+        layout[0], layout[1], layout[2], layout[3]);
+}
+
+Int4 ScanSubject(const LookupTableWrap* lookup, const BLAST_SequenceBlk* subject,
+                 BlastOffsetPair* output, Int4 max_hits, Int4* range)
+{
+    if (range[0] > range[1]) return 0;
+    bool small = lookup->lut_type == eSmallNaLookupTable;
+    Int4 step, width, chain;
+    if (small) {
+        const BlastSmallNaLookupTable* t = static_cast<const BlastSmallNaLookupTable*>(lookup->lut);
+        step = t->scan_step; width = t->lut_word_length; chain = t->longest_chain;
+    } else {
+        const BlastMBLookupTable* t = static_cast<const BlastMBLookupTable*>(lookup->lut);
+        if (t->discontiguous) throw std::runtime_error("Discontiguous megablast is not supported by the GPU backend");
+        step = t->scan_step; width = t->lut_word_length; chain = t->longest_chain;
+    }
+    chain = std::max(chain, Int4(1));
+    if (step < 1 || width < 1 || width > 12 || range[0] < 0 || range[1] > subject->length - width)
+        throw std::runtime_error("G-BLASTN invalid GPU scan range or lookup width");
+    if (max_hits < chain) throw std::runtime_error("G-BLASTN hit capacity is smaller than one lookup chain");
+    ScanMemory& m = Scan(); QueryMemory& q = Query(); m.load(subject);
+    if (range[0] == 0) m.cumulative_hits = 0;
+    // At most 65536 scan positions and 1M hit slots per batch. Bound before
+    // multiplication; all prefix sums fit Int4 and no hit is dropped on saturation.
+    Uint4 capacity = std::min<Uint4>(Uint4(max_hits), 1024u * 1024u);
+    if (Uint4(chain) > capacity) throw std::runtime_error("G-BLASTN lookup chain exceeds bounded GPU hit capacity");
+    Uint4 positions = std::min<Uint4>(65536, capacity / Uint4(chain));
+    positions = std::min<Uint4>(positions, Uint4((range[1] - range[0]) / step) + 1);
+    m.counts.resize(positions + 1); m.prefix.resize(positions + 1);
+    m.hits.resize(capacity);
+    GPU_CHECK(cudaMemset(m.error.ptr, 0, sizeof(Uint4)));
+    GPU_CHECK(cudaMemset(m.counts.ptr + positions, 0, sizeof(Uint4)));
+    const Uint4 blocks = (positions + 255) / 256;
+#define SCAN_ARGS m.subject.ptr, range[0], step, width, positions, q.backbone.ptr, q.overflow.ptr, Uint4(q.overflow.size), q.hash.ptr, q.next.ptr, Uint4(q.next.size), Uint4(chain), m.counts.ptr, m.prefix.ptr, m.hits.ptr, m.error.ptr
+    if (small) gpu_scan_lookup<true,false><<<blocks,256>>>(SCAN_ARGS);
+    else gpu_scan_lookup<false,false><<<blocks,256>>>(SCAN_ARGS);
+    GPU_CHECK(cudaGetLastError());
+    thrust::device_ptr<Uint4> counts(m.counts.ptr), prefix(m.prefix.ptr);
+    thrust::exclusive_scan(counts, counts + positions + 1, prefix);
+    GPU_CHECK(cudaGetLastError());
+    Uint4 total = 0, error = 0;
+    GPU_CHECK(cudaMemcpy(&total, m.prefix.ptr + positions, sizeof(total), cudaMemcpyDeviceToHost));
+    GPU_CHECK(cudaMemcpy(&error, m.error.ptr, sizeof(error), cudaMemcpyDeviceToHost));
+    if (error || total > capacity) throw std::runtime_error("G-BLASTN invalid or over-capacity lookup chain");
+    m.cumulative_hits += total;
+    if (m.cumulative_hits > INT_MAX)
+        throw std::runtime_error("G-BLASTN subject hit count exceeds BLAST 2.2.28 signed 32-bit statistics capacity");
+    if (small) gpu_scan_lookup<true,true><<<blocks,256>>>(SCAN_ARGS);
+    else gpu_scan_lookup<false,true><<<blocks,256>>>(SCAN_ARGS);
+    GPU_CHECK(cudaGetLastError());
+    GPU_CHECK(cudaMemcpy(&error, m.error.ptr, sizeof(error), cudaMemcpyDeviceToHost));
+    if (error) throw std::runtime_error("G-BLASTN lookup chain changed during scan");
+    if (total) GPU_CHECK(cudaMemcpy(output, m.hits.ptr, size_t(total) * sizeof(*output), cudaMemcpyDeviceToHost));
+#undef SCAN_ARGS
+    Completed(small ? "small" : "megablast", "scan", subject->oid, positions, total);
+    // The next offset can exceed INT_MAX if the final step crosses the end.
+    Int8 next = Int8(range[0]) + Int8(positions) * step;
+    range[0] = next > range[1] ? range[1] + 1 : Int4(next);
+    return Int4(total);
+}
+
+Int4 Extend(BlastOffsetPair* offsets, Int4 count,
+    const BlastInitialWordParameters* params, LookupTableWrap* lookup,
+    BLAST_SequenceBlk* query, BLAST_SequenceBlk* subject, Int4** matrix,
+    BlastQueryInfo* info, Blast_ExtendWord* ewp, BlastInitHitList* hitlist,
+    Uint4 subject_range, bool aligned, bool direct)
+{
+    if (count <= 0) return 0;
+    bool small = lookup->lut_type == eSmallNaLookupTable;
+    Int4 word, width; BlastSeqLoc* masked;
+    if (small) {
+        BlastSmallNaLookupTable* t = static_cast<BlastSmallNaLookupTable*>(lookup->lut);
+        word = t->word_length; width = t->lut_word_length; masked = t->masked_locations;
+    } else {
+        BlastMBLookupTable* t = static_cast<BlastMBLookupTable*>(lookup->lut);
+        word = t->word_length; width = t->lut_word_length; masked = t->masked_locations;
+    }
+    ScanMemory& m = Scan(); QueryMemory& q = Query(); m.load(subject);
+    if (size_t(count) > m.hits.size) throw std::runtime_error("G-BLASTN mini-extension input exceeds scan capacity");
+    m.extended.resize(count);
+    Int4 blocks = (count + 255) / 256;
+    if (!direct) {
+        if (small && aligned) {
+            kernel_s_BlastSmallNaExtendAlignedOneByte<<<blocks,256>>>(m.subject.ptr, q.query.ptr,
+                word, width, count, m.hits.ptr, m.extended.ptr, Int4(subject_range),
+                q.contexts.ptr, info->last_context, query->length);
+        } else if (small) {
+            kernel_s_BlastSmallExtend_v3<<<blocks,256>>>(m.subject.ptr, q.query.ptr,
+                word, width, count, m.hits.ptr, m.extended.ptr, Int4(subject_range),
+                q.contexts.ptr, info->last_context);
+        } else {
+            kernel_s_BlastNaExtend_withoutHash_v3<<<blocks,256>>>(m.subject.ptr, q.query.ptr,
+                width, word - width, count, m.hits.ptr, m.extended.ptr, Int4(subject_range), query->length);
+        }
+        GPU_CHECK(cudaGetLastError());
+        GPU_CHECK(cudaMemcpy(offsets, m.extended.ptr, size_t(count) * sizeof(*offsets), cudaMemcpyDeviceToHost));
+        size_t accepted = 0;
+        for (Int4 i = 0; i < count; ++i) if (offsets[i].qs_offsets.q_off != Uint4(-1)) ++accepted;
+        Completed(small ? "small" : "megablast", "extend", subject->oid, count, accepted);
+    }
+    Int4 extended = 0;
+    // Keep the original CPU diagonal and scored ungapped extension. Input order
+    // is the same as the CPU lookup scanner (including equal-subject ties).
+    for (Int4 i = 0; i < count; ++i) {
+        if (offsets[i].qs_offsets.q_off == Uint4(-1)) continue;
+        Int4 s = offsets[i].qs_offsets.s_off, qoff = offsets[i].qs_offsets.q_off;
+        if (params->container_type == eDiagHash)
+            extended += s_BlastnDiagHashExtendInitialHit(query, subject, qoff, s,
+                direct ? NULL : masked, info, subject_range, word, direct ? word : width,
+                lookup, params, matrix, ewp->hash_table, hitlist);
+        else
+            extended += s_BlastnDiagTableExtendInitialHit(query, subject, qoff, s,
+                direct ? NULL : masked, info, subject_range, word, direct ? word : width,
+                lookup, params, matrix, ewp->diag_table, hitlist);
+    }
+    return extended;
+}
+} // namespace
+
+void InitGPUMem_DB_MultiSeq(int, int)
+{
+    if (!Data().m_global) Data().m_global = new ScanMemory;
+}
 void ReleaseGPUMem_DB_MultiSeq()
 {
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	if (gpu_obj.m_global != NULL)
-	{
-		cudaScanAuxWrapMultiQueries * p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries *) gpu_obj.m_global;
-
-		delete [] p_scanMultiDBAuxWrap->h_offsetPairs;
-
-		checkCudaErrors(cudaFree(p_scanMultiDBAuxWrap->total_hits));
-		checkCudaErrors(cudaFree(p_scanMultiDBAuxWrap->over_hits_num));
-		checkCudaErrors(cudaFree(p_scanMultiDBAuxWrap->offsetPairs));
-		checkCudaErrors(cudaFree(p_scanMultiDBAuxWrap->over_offset_pairs));
-
-		checkCudaErrors(cudaFree(p_scanMultiDBAuxWrap->counter));
-		checkCudaErrors(cudaFree(p_scanMultiDBAuxWrap->zero));
-
-		for ( int i = 0; i < p_scanMultiDBAuxWrap->subject_id; i++)
-		{
-			if ( p_scanMultiDBAuxWrap->subject[i] != NULL)
-			{
-				checkCudaErrors(cudaFree(p_scanMultiDBAuxWrap->subject[i]));
-			}
-		}
-		delete[] p_scanMultiDBAuxWrap->subject;
-
-		delete p_scanMultiDBAuxWrap;   
-		gpu_obj.m_global = NULL;
-	}
+    GpuData& data = Data(); delete static_cast<ScanMemory*>(data.m_global); data.m_global = NULL;
 }
-
-//////////////////////////////////////////////////////////////////////////
-//small
-/** Wrapper structure for different types of cuda structures */
-struct cudaSmallTableAuxWrap : public GpuObject
+void InitSmallQueryGPUMem(LookupTableWrap* lookup, BLAST_SequenceBlk* query, BlastQueryInfo* info)
 {
-	Int2 * overflowtable;
-	Uint4 overflowtable_len;
-	Uint1 * query_compressed_nuc_seq_start;
-	BlastContextInfo* contextinfo;
-	Int2 * backbone;
-	//Uint4 * d_small_table;
-	Uint4 * h_small_table;
-} ;
-
-///static cudaSmallTableAuxWrap cuda_smallAuxWrap;
-//////////////////////////////////////////////////////////////////////////
-//init query gpu memory
-void InitSmallNaLookupTableTexture_v3(cudaSmallTableAuxWrap& cuda_smallAuxWrap, LookupTableWrap* lookup_wrap)
-{
-	BlastSmallNaLookupTable *lookup = (BlastSmallNaLookupTable *) lookup_wrap->lut;
-	Int4 backbone_size = lookup->backbone_size;
-
-	Int2* d_backbone = NULL;
-	//create cuda
-	checkCudaErrors(cudaMalloc( (void**)&d_backbone, backbone_size * sizeof (Int2)));
-	checkCudaErrors(cudaMemcpy( d_backbone, lookup->final_backbone, backbone_size * sizeof (Int2), cudaMemcpyHostToDevice));
-	SET_INT2_BASE;
-	cuda_smallAuxWrap.backbone = d_backbone;
-#if 0
-	//////////////////////////////////////////////////////////////////////////
-	//
-	Uint4 * h_small_tb = new Uint4[backbone_size/32/2]();
-	Int2 hash_value1 = -1;
-	Int2 hash_value2 = -1;
-	int k = 0; 
-	for (int i = 0; i < backbone_size/32/2; i++)
-	{
-		Uint4 bit_hash_value = 0;
-		for ( int j = 0; j < 32; j++)
-		{
-			hash_value1 = lookup->final_backbone[k++];
-			hash_value2 = lookup->final_backbone[k++];
-			if (hash_value1 != -1 || hash_value2 != -1)
-			{
-				bit_hash_value |= 1<<j;
-			}
-		}
-		h_small_tb[i] = bit_hash_value;
-	}
-	cuda_smallAuxWrap.h_small_table = h_small_tb;
-	checkCudaErrors(cudaMemcpyToSymbol(cn_small_tb, h_small_tb, 65536/8/2));
-#endif
-	Uint4 * h_small_tb = new Uint4[backbone_size/32]();
-	Int2 hash_value1 = -1;
-	int k = 0; 
-	for (int i = 0; i < backbone_size/32; i++)
-	{
-		Uint4 bit_hash_value = 0;
-		for ( int j = 0; j < 32; j++)
-		{
-			hash_value1 = lookup->final_backbone[k++];
-			//hash_value2 = lookup->final_backbone[k++];
-			if (hash_value1 != -1 )
-			{
-				bit_hash_value |= 1<<j;
-			}
-		}
-		h_small_tb[i] = bit_hash_value;
-	}
-	cuda_smallAuxWrap.h_small_table = h_small_tb;
-	checkCudaErrors(cudaMemcpyToSymbol(cn_big_tb, h_small_tb, 65536/8));
+    if (Data().m_local) throw std::runtime_error("G-BLASTN query memory still in use");
+    if (query->length < 0 || info->first_context < 0 || info->last_context < info->first_context)
+        throw std::runtime_error("G-BLASTN invalid query context range");
+    std::unique_ptr<QueryMemory> q(new QueryMemory);
+    BlastSmallNaLookupTable* t = static_cast<BlastSmallNaLookupTable*>(lookup->lut);
+    q->backbone.upload(t->final_backbone, t->backbone_size);
+    q->overflow.upload(t->overflow, t->overflow_size);
+    q->query.upload(query->compressed_nuc_seq_start, size_t(query->length) + 3);
+    // Include contexts before first_context because lookup offsets and binary
+    // search indexes remain relative to the original concatenated query.
+    std::vector<GpuQueryContext> contexts(size_t(info->last_context) + 1);
+    for (Int4 i = 0; i <= info->last_context; ++i) {
+        contexts[i].query_offset = info->contexts[i].query_offset;
+        contexts[i].query_length = info->contexts[i].query_length;
+    }
+    q->contexts.upload(&contexts[0], contexts.size());
+    VerifyContextABI(contexts, *q);
+    Scan().source = NULL;
+    Data().m_local = q.release();
 }
-
-void InitSmallQueryGPUMem(LookupTableWrap* lookup_wrap, BLAST_SequenceBlk* query, BlastQueryInfo* query_info)
+void InitMBQueryGPUMem(LookupTableWrap* lookup, BLAST_SequenceBlk* query)
 {
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	if (gpu_obj.m_local == NULL)
-	{
-		BlastContextInfo* d_contextinfo = NULL;
-		Uint1* d_query_compressed_nuc_seq_start = NULL;
-		BlastSmallNaLookupTable *lookup = (BlastSmallNaLookupTable *) lookup_wrap->lut;
-		Int2* d_overflow = NULL;
-
-		int context_num = query_info->last_context - query_info->first_context +1;
-		checkCudaErrors(cudaMalloc((void **)&d_contextinfo,  context_num * sizeof(BlastContextInfo)));
-		checkCudaErrors(cudaMemcpy(d_contextinfo, &query_info->contexts[query_info->first_context], context_num* sizeof(BlastContextInfo), cudaMemcpyHostToDevice));
-
-		int compressed_seq_len = query->length + 3;
-		checkCudaErrors(cudaMalloc((void **)&d_query_compressed_nuc_seq_start, (compressed_seq_len) * sizeof(Uint1)));
-		checkCudaErrors(cudaMemcpy(d_query_compressed_nuc_seq_start, query->compressed_nuc_seq_start,  (compressed_seq_len) * sizeof(Uint1), cudaMemcpyHostToDevice));
-
-		int overflow_size = lookup->overflow_size;
-		checkCudaErrors(cudaMalloc((void**)&d_overflow, overflow_size *(sizeof(Int2))));
-		checkCudaErrors(cudaMemcpy( d_overflow, lookup->overflow, overflow_size * sizeof (Int2), cudaMemcpyHostToDevice));
-
-
-		cudaSmallTableAuxWrap* p_smallAuxWrap = new cudaSmallTableAuxWrap();
-		p_smallAuxWrap->contextinfo = d_contextinfo;
-		p_smallAuxWrap->query_compressed_nuc_seq_start = d_query_compressed_nuc_seq_start;
-		p_smallAuxWrap->overflowtable = d_overflow;
-		p_smallAuxWrap->overflowtable_len = overflow_size;
-
-		InitSmallNaLookupTableTexture_v3(*p_smallAuxWrap, lookup_wrap);
-
-		gpu_obj.m_local = p_smallAuxWrap;
-	}
+    if (Data().m_local) throw std::runtime_error("G-BLASTN query memory still in use");
+    BlastMBLookupTable* t = static_cast<BlastMBLookupTable*>(lookup->lut);
+    if (t->discontiguous) throw std::runtime_error("Discontiguous megablast is not supported by the GPU backend");
+    std::unique_ptr<QueryMemory> q(new QueryMemory);
+    q->hash.upload(t->hashtable, t->hashsize);
+    q->next.upload(t->next_pos, size_t(query->length) + 1);
+    q->query.upload(query->sequence, query->length);
+    Scan().source = NULL;
+    Data().m_local = q.release();
 }
-
-//////////////////////////////////////////////////////////////////////////
-
 void ReleaseSmallQueryGPUMem()
 {
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	if (gpu_obj.m_local != NULL)
-	{
-		cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
-		
-		checkCudaErrors(cudaFree(p_smallAuxWrap->contextinfo));
-		checkCudaErrors(cudaFree(p_smallAuxWrap->query_compressed_nuc_seq_start));
-		checkCudaErrors(cudaFree(p_smallAuxWrap->overflowtable));
-		checkCudaErrors(cudaFree(p_smallAuxWrap->backbone));
-#if USE_SMALL_TEXTURE
-		checkCudaErrors(cudaUnbindTexture(tx_backbone));
-#endif
-		delete [] p_smallAuxWrap->h_small_table;
-		delete p_smallAuxWrap;		
-		gpu_obj.m_local = NULL;
-	}
+    GpuData& data = Data(); delete static_cast<QueryMemory*>(data.m_local); data.m_local = NULL;
+    if (Trace()) std::fprintf(stderr, "GBLASTN_MEMORY allocated_bytes=%zu peak_bytes=%zu limit_bytes=%zu\n",
+        allocated_bytes.load(), peak_bytes.load(), AllocationLimit());
 }
-
-/** Scan the compressed subject sequence, returning 11-letter word hits
-* with stride two plus a multiple of four. Assumes a megablast lookup table
-* @param lookup_wrap Pointer to the (wrapper to) lookup table [in]
-* @param subject The (compressed) sequence to be scanned for words [in]
-* @param offset_pairs Array of query and subject positions where words are 
-*                found [out]
-* @param max_hits The allocated size of the above array - how many offsets 
-*        can be returned [in]
-* @param scan_range The starting and ending pos to be scanned [in] 
-*        on exit, scan_range[0] is updated to be the stopping pos [out]
-*/
-int s_gpu_MBScanSubject_8_1Mod4_scankernel_Opt_v3_1(Uint4 scan_range_temp,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaSmallTableAuxWrap* p_smallAuxWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	Uint4 total_hits = 0;
-	int current_subject_id = subject->oid;
-
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //初始化为0
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-
-	static int blocksize_x = SHARE_MEM_SMALL_SIZE/2;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-
-	scan_range_temp = scan_range_temp/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 8192;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-	slogfile.KernelStart();
-
-	gpu_blastn_scan_8_1mod4_v3<<< gridSize, blockSize >>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		p_scanMultiDBAuxWrap->total_hits,
-		p_scanMultiDBAuxWrap->over_hits_num,
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-
-	getLastCudaError("gpu_blastn_scan_8_1mod4() execution failed.\n");
-
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(), false);
-
-	//checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->total_hits, sizeof(Uint4), cudaMemcpyDeviceToHost));
-	//cout << subject->length <<"\ttotal_scan_hits:\t" << total_hits <<"\t";
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->over_hits_num, sizeof(Uint4), cudaMemcpyDeviceToHost));
-	//cout << total_hits <<endl;
-	//exit(0);
-	return total_hits;
-}
-
-int s_gpu_MBScanSubject_8_1Mod4_scankernel_Opt_v3_2(int total_hits,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaSmallTableAuxWrap* p_smallAuxWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{	
-	if (total_hits > 0)
-	{
-		Int4 threadNum = 256;
-		Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
-		dim3 gridDim(blockNum, 1);
-		dim3 blockDim(threadNum, 1);
-
-		//checkCudaErrors(cudaMemset(cuda_extenWrap.exact_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-#if LOG_TIME
-		slogfile.KernelStart();
-#endif
-
-		kernel_lookupInSmallTable_v3<<<gridDim,blockDim>>>(
-			p_smallAuxWrap->overflowtable,
-			total_hits,
-			p_scanMultiDBAuxWrap->over_offset_pairs,
-			p_scanMultiDBAuxWrap->offsetPairs,
-			p_scanMultiDBAuxWrap->total_hits,
-			p_smallAuxWrap->overflowtable_len
-			);
-		getLastCudaError("kernel_lookupInsSmallTable() execution failed.\n");
-#if LOG_TIME
-		slogfile.KernelEnd();
-		slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime() ,false );
-#endif
-	}
-		
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->total_hits, sizeof(unsigned int), cudaMemcpyDeviceToHost)); 
-#if LOG_TIME
-	slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits,false);
-#endif
-
-	return total_hits;
-}
-Int4 
-	s_gpu_MBScanSubject_8_1Mod4_scankernel_Opt_v3(const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	BlastSmallNaLookupTable *lookup = (BlastSmallNaLookupTable *) lookup_wrap->lut;
-	Uint4 total_hits = 0; 
-
-	max_hits -= lookup->longest_chain;
-	ASSERT(lookup_wrap->lut_type == eSmallNaLookupTable);
-	ASSERT(lookup->lut_word_length == 8);
-	ASSERT(lookup->scan_step % COMPRESSION_RATIO == 1);
-
-	if(scan_range[0] > scan_range[1]) return 0;
-
-	max_hits -= lookup->longest_chain;
-
-	Uint4 scan_range_temp = (scan_range[1]+lookup->lut_word_length - scan_range[0]);
-
-	int current_subject_id = subject->oid;
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
-
-	slogfile.Start();
-	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
-	{	
-		//printf("%d,\n", current_subject_id);
-		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(scan_range_temp)/4));
-		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (scan_range_temp) / 4 , cudaMemcpyHostToDevice));
-	}
-	slogfile.End();
-	slogfile.addTotalTime("Scan CPU -> GPU Memory Time",slogfile.elaplsedTime(), false);
-
-	total_hits = s_gpu_MBScanSubject_8_1Mod4_scankernel_Opt_v3_1(scan_range_temp,p_scanMultiDBAuxWrap, p_smallAuxWrap,lookup_wrap,subject,offset_pairs,max_hits,scan_range);
-	total_hits = s_gpu_MBScanSubject_8_1Mod4_scankernel_Opt_v3_2(total_hits,p_scanMultiDBAuxWrap, p_smallAuxWrap, lookup_wrap,subject,offset_pairs,max_hits,scan_range);
-
-	scan_range[0] = scan_range[1]+lookup->lut_word_length;
-
-	return total_hits;
-}
-
-Int4 
-	s_gpu_BlastSmallExtend_v3(BlastOffsetPair * offset_pairs, Int4 num_hits,
-	const BlastInitialWordParameters * word_params,
-	LookupTableWrap * lookup_wrap,
-	BLAST_SequenceBlk * query,
-	BLAST_SequenceBlk * subject, Int4 ** matrix,
-	BlastQueryInfo * query_info,
-	Blast_ExtendWord * ewp,
-	BlastInitHitList * init_hitlist,
-	Uint4 s_range )
-{
-	Int4 hits_extended = 0;
-	Int4 word_length, lut_word_length;
-	BlastSmallNaLookupTable *lut = (BlastSmallNaLookupTable *) lookup_wrap->lut;
-	word_length = lut->word_length;
-	lut_word_length = lut->lut_word_length;
-
-	int current_subject_id = subject->oid;
-	
-	unsigned int exact_hits_num = 0;
-
-	Int4 threadNum = 512;
-	Int4 blockNum_Ex = (num_hits + threadNum - 1)/threadNum;
-	dim3 gridDim_Ex(blockNum_Ex, 1);
-	dim3 blockDim_Ex(threadNum, 1);
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
-
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-
-	//printf("id:%d,num_his:%d \n", p_scanMultiDBAuxWrap->subject_id,num_hits);
-	slogfile.KernelStart();
-
-	kernel_s_BlastSmallExtend_v3<<<gridDim_Ex, blockDim_Ex>>> (
-		(Uint1*)p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_smallAuxWrap->query_compressed_nuc_seq_start,
-		word_length,
-		lut_word_length,	
-		num_hits,
-		p_scanMultiDBAuxWrap->offsetPairs,p_scanMultiDBAuxWrap->over_offset_pairs,  
-		p_scanMultiDBAuxWrap->over_hits_num, 
-		s_range,
-		p_smallAuxWrap->contextinfo,
-		query_info->last_context);
-	getLastCudaError("kernel_s_BlastSmallExtend() execution failed.\n");
-
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("extend_kernel_time", slogfile.KernelElaplsedTime(), false);
-
-	checkCudaErrors(cudaMemcpy(&exact_hits_num, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	slogfile.addTotalNum("Small_extended hits", exact_hits_num,false);
-
-	__int64 c1 = 0,c2 = 0;
-	if (exact_hits_num >0)
-	{
-		c1 = slogfile.Start();
-		thrust::device_ptr<BlastOffsetPair> dev_ptr(p_scanMultiDBAuxWrap->over_offset_pairs);
-		thrust::sort(dev_ptr,dev_ptr+exact_hits_num,OffsetPairCmp());
-		checkCudaErrors(cudaMemcpy(offset_pairs, p_scanMultiDBAuxWrap->over_offset_pairs, exact_hits_num * sizeof(BlastOffsetPair), cudaMemcpyDeviceToHost));
-		c2 = slogfile.End();
-		slogfile.addTotalTime("GPU->CPU memory Time", c1, c2, false);
-		//thrust::sort(offset_pairs,offset_pairs+exact_hits_num,OffsetPairCmp());
-	}
-
-	c1 = slogfile.Start();
-	if (exact_hits_num >0)
-	{  
-		if (word_params->container_type == eDiagHash) {
-			for(int i=0; i<exact_hits_num; i++){
-				Int4 s_offset = offset_pairs[i].qs_offsets.s_off;
-				Int4 q_offset = offset_pairs[i].qs_offsets.q_off;
-			hits_extended += s_BlastnDiagHashExtendInitialHit(query, subject, 
-				q_offset, s_offset,  
-				lut->masked_locations, 
-				query_info, s_range, 
-				word_length, lut_word_length,
-				lookup_wrap,
-				word_params, matrix,
-				ewp->hash_table,
-				init_hitlist);
-			}
-		}
-		else{
-			for(int i=0; i<exact_hits_num; i++){
-				Int4 s_offset = offset_pairs[i].qs_offsets.s_off;
-				Int4 q_offset = offset_pairs[i].qs_offsets.q_off;	
-				hits_extended += s_BlastnDiagTableExtendInitialHit(query, subject, 
-					q_offset, s_offset,  
-					lut->masked_locations, 
-					query_info, s_range, 
-					word_length, lut_word_length,
-					lookup_wrap,
-					word_params, matrix,
-					ewp->diag_table,
-					init_hitlist);
-			}
-		}
-
-
-	}
-
-
-	c2 = slogfile.End();
-	slogfile.addTotalTime("Hits extend time",c1,c2, false);
-
-	return hits_extended; 
-}
-
-//////////////////////////////////////////////////////////////////////////
-///blastn
-//////////////////////////////////////////////////////////////////////////
-
-int s_gpu_BlastSmallNaScanSubject_8_4_p1(Uint4 scan_range_temp,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaSmallTableAuxWrap* p_smallAuxWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	Uint4 total_hits = 0;
-	int current_subject_id = subject->oid;
-
-	//checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //初始化为0
-	//checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-	checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->counter, p_scanMultiDBAuxWrap->zero, 3*sizeof(Uint4), cudaMemcpyDeviceToDevice));
-	//cout << subject->length << "\t";
-
-#if 0
-	//static int blocksize_x = SHARE_MEM_SMALL_SIZE/2;
-	static int blocksize_x = 256;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-
-	scan_range_temp = scan_range_temp/32;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif
-
-	gpu_blastn_scan_8_4<<< gridSize, blockSize>>>(
-		(Uint8*)p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		&p_scanMultiDBAuxWrap->counter[1],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-
-#if 0
-static int blocksize_x = SHARE_MEM_SMALL_SIZE/2;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-
-	scan_range_temp = scan_range_temp/4;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 4096;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif
-
-	gpu_blastn_scan_8_4_v1<<< gridSize, blockSize>>>(
-		(Uint1*)p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		&p_scanMultiDBAuxWrap->counter[1],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-
-#if 0
-	static int blocksize_x = 256;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-
-	scan_range_temp = (scan_range_temp-15)/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;		   
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif
-
-	gpu_blastn_scan_8_4_v2<<< gridSize, blockSize>>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		&p_scanMultiDBAuxWrap->counter[1],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-#if 0
-	static int blocksize_x = 256 ;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-
-	scan_range_temp = (scan_range_temp-15)/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 8192;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;		   
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif		  
-	gpu_blastn_scan_8_4_v2_1<<< gridSize, blockSize>>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		&p_scanMultiDBAuxWrap->counter[1],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-#if 0
-	//static int blocksize_x = SHARE_MEM_SMALL_SIZE/2;
-	static int blocksize_x = 512;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-
-	//scan_range_temp = scan_range_temp/32;
-	scan_range_temp = scan_range_temp/4;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif
-
-	gpu_blastn_scan_8_4_v4<<< gridSize, blockSize>>>(
-		(Uint1*)p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		p_scanMultiDBAuxWrap->counter,
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-#if 0
-	static int blocksize_x = 256;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-
-	scan_range_temp = (scan_range_temp-15)/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;		   
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif
-
-	gpu_blastn_scan_8_4_v3<<< gridSize, blockSize>>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		&p_scanMultiDBAuxWrap->counter[1],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-
-#if 0
-	static int blocksize_x = SHARE_MEM_SMALL_SIZE_V5/2;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-
-	scan_range_temp = scan_range_temp/32;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif			
-	gpu_blastn_scan_8_4_v5<<< gridSize, blockSize>>>(
-		(Uint8*)p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		&p_scanMultiDBAuxWrap->counter[1],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-
-#if 0
-	static int blocksize_x = 512;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-	scan_range_temp = (scan_range_temp-15)/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-	static int max_grid_size = 128 ;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif		  
-	gpu_blastn_scan_8_4_v2_2<<< gridSize, blockSize>>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		&p_scanMultiDBAuxWrap->counter[1],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-#if 1
-	static int blocksize_x = 512;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-	scan_range_temp = (scan_range_temp-15)/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-	static int max_grid_size = 128 ;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif		  
-	gpu_blastn_scan_8_4_v2_3<<< gridSize, blockSize>>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		p_scanMultiDBAuxWrap->over_offset_pairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		&p_scanMultiDBAuxWrap->counter[1],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-#endif
-	getLastCudaError("gpu_blastn_scan_8_4_v1() execution failed.\n");
-#if LOG_TIME
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(), true);
-#endif			   
-	//checkCudaErrors(cudaMemcpy(&total_hits, &p_scanMultiDBAuxWrap->counter[0], sizeof(Uint4), cudaMemcpyDeviceToHost));
-	//cout << subject->length <<"\ttotal_scan_hits:\t" << total_hits <<"\n";
-	checkCudaErrors(cudaMemcpy(&total_hits, &p_scanMultiDBAuxWrap->counter[1], sizeof(Uint4), cudaMemcpyDeviceToHost));
-	//cout << total_hits <<"\n";	
-	//exit(0);
-	return total_hits;
-}
-
-int s_gpu_BlastSmallNaScanSubject_8_4_p2(int total_hits,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaSmallTableAuxWrap* p_smallAuxWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{	
-	if (total_hits > 0)
-	{
-		Int4 threadNum = 256;
-		Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
-		dim3 gridDim(blockNum, 1);
-		dim3 blockDim(threadNum, 1);
-
-		//checkCudaErrors(cudaMemset(cuda_extenWrap.exact_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-#if LOG_TIME
-		slogfile.KernelStart();
-#endif
-
-		//kernel_lookupInSmallTable_v3<<<gridDim,blockDim>>>(
-		kernel_lookupInSmallTable_v3<<<gridDim,blockDim>>>(
-			p_smallAuxWrap->overflowtable,
-			total_hits,
-			p_scanMultiDBAuxWrap->over_offset_pairs,
-			p_scanMultiDBAuxWrap->offsetPairs,
-			&p_scanMultiDBAuxWrap->counter[0],
-			p_smallAuxWrap->overflowtable_len
-			);
-		getLastCudaError("kernel_lookupInsSmallTable() execution failed.\n");
-#if LOG_TIME
-		slogfile.KernelEnd();
-		slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime() ,false );
-#endif
-	}
-
-	checkCudaErrors(cudaMemcpy(&total_hits, &p_scanMultiDBAuxWrap->counter[0], sizeof(unsigned int), cudaMemcpyDeviceToHost)); 
-#if LOG_TIME
-	slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits,false);
-#endif
-
-	return total_hits;
-}
-
-Int4 
-	s_gpu_BlastSmallNaScanSubject_8_4(const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	BlastSmallNaLookupTable *lookup = (BlastSmallNaLookupTable *) lookup_wrap->lut;
-	Uint4 total_hits = 0; 
-
-	max_hits -= lookup->longest_chain;
-	ASSERT(lookup_wrap->lut_type == eSmallNaLookupTable);
-	ASSERT(lookup->lut_word_length == 8);
-	//ASSERT(lookup->scan_step % COMPRESSION_RATIO == 1);
-
-	if(scan_range[0] > scan_range[1]) return 0;
-
-	max_hits -= lookup->longest_chain;
-
-	Uint4 scan_range_temp = (scan_range[1]+lookup->lut_word_length - scan_range[0]);
-
-	int current_subject_id = subject->oid;
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
-#if LOG_TIME
-	  slogfile.Start();
-#endif
-	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
-	{	
-		//printf("%d,\n", current_subject_id);
-		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(scan_range_temp)/4));
-		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (scan_range_temp) / 4 , cudaMemcpyHostToDevice));
-	}
-#if LOG_TIME
-	slogfile.End();
-	slogfile.addTotalTime("Scan CPU -> GPU Memory Time",slogfile.elaplsedTime(), false);
-#endif
-	total_hits = s_gpu_BlastSmallNaScanSubject_8_4_p1(scan_range_temp,p_scanMultiDBAuxWrap, p_smallAuxWrap,lookup_wrap,subject,offset_pairs,max_hits,scan_range);
-	total_hits = s_gpu_BlastSmallNaScanSubject_8_4_p2(total_hits,p_scanMultiDBAuxWrap, p_smallAuxWrap, lookup_wrap,subject,offset_pairs,max_hits,scan_range);
-
-	scan_range[0] = scan_range[1]+lookup->lut_word_length;
-
-	return total_hits;
-}
-
-////////////////////////////////////////////////////////////////////////////
-int s_gpu_BlastSmallNaScanSubject_8_4_p1_v2(Uint4 scan_range_temp,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaSmallTableAuxWrap* p_smallAuxWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	Uint4 total_hits = 0;
-	int current_subject_id = subject->oid;
-
-	//checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //初始化为0
-	//checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-	checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->counter, p_scanMultiDBAuxWrap->zero, 3*sizeof(Uint4), cudaMemcpyDeviceToDevice));
-	//cout << subject->length << "\t";
-#if 1
-	static int blocksize_x = 512;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-	scan_range_temp = (scan_range_temp-15)/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-	static int max_grid_size = 128 ;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}				  
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-	scan_range_temp = 32; // for test
-
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif		  
-	gpu_blastn_scan_8_4_v2_4<<< 1, 32>>>(//gpu_blastn_scan_8_4_v2_4<<< gridSize, blockSize>>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_scanMultiDBAuxWrap->offsetPairs,
-		&p_scanMultiDBAuxWrap->counter[0],
-		scan_range_temp, 
-		scan_range[0],
-		global_size,
-		p_smallAuxWrap->backbone);
-
-
-#endif
-	getLastCudaError("gpu_blastn_scan_8_4_v2() execution failed.\n");
-#if LOG_TIME
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(), false);
-#endif			   
-	checkCudaErrors(cudaMemcpy(&total_hits, &p_scanMultiDBAuxWrap->counter[0], sizeof(Uint4), cudaMemcpyDeviceToHost));
-	//cout << total_hits <<"\n";
-	//checkCudaErrors(cudaMemcpy(&total_hits, &p_scanMultiDBAuxWrap->counter[1], sizeof(Uint4), cudaMemcpyDeviceToHost));
-	//cout << total_hits <<"\n";	
-	//getchar();
-	//exit(0);
-	return total_hits;
-}
-
-int s_gpu_BlastSmallNaScanSubject_8_4_p2_v2(int total_hits,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaSmallTableAuxWrap* p_smallAuxWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{	
-	int exact_hits = 0;
-	if (total_hits > 0)
-	{
-		BlastSmallNaLookupTable *lookup = (BlastSmallNaLookupTable *) lookup_wrap->lut;
-
-		BlastOffsetPair* p_off = p_scanMultiDBAuxWrap->h_offsetPairs;
-		checkCudaErrors(cudaMemcpy(p_off, p_scanMultiDBAuxWrap->offsetPairs, total_hits * sizeof(BlastOffsetPair), cudaMemcpyDeviceToHost));
-		BlastOffsetPair t_off;
-		for(int i = 0; i < total_hits; i++)
-		{
-			t_off = p_off[i];
-			int hash_index = (int)t_off.qs_offsets.q_off;
-			Int2 hash_value = lookup->final_backbone[hash_index];
-			t_off.qs_offsets.q_off = hash_value;
-			if( hash_value > -1)
-			{
-				offset_pairs[exact_hits++] = t_off;
-			}else
-			{
-				Uint4 src_off = -hash_value;
-				Uint4 s_off = t_off.qs_offsets.s_off;
-				Int4 s_index = lookup->overflow[src_off++];
-				do {
-					t_off.qs_offsets.q_off = s_index;
-					t_off.qs_offsets.s_off = s_off;
-					offset_pairs[exact_hits++] = t_off;
-					if (src_off <= lookup->overflow_size)
-					{
-						s_index = lookup->overflow[src_off++];
-					}
-					else
-					{
-						break;
-					}
-				} while (s_index >= 0);
-			}
-		}
-	}
-
-	return exact_hits;
-}
-
-Int4 
-	s_gpu_BlastSmallNaScanSubject_8_4_v2(const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	BlastSmallNaLookupTable *lookup = (BlastSmallNaLookupTable *) lookup_wrap->lut;
-	Uint4 total_hits = 0; 
-
-	max_hits -= lookup->longest_chain;
-	ASSERT(lookup_wrap->lut_type == eSmallNaLookupTable);
-	ASSERT(lookup->lut_word_length == 8);
-	//ASSERT(lookup->scan_step % COMPRESSION_RATIO == 1);
-
-	if(scan_range[0] > scan_range[1]) return 0;
-
-	max_hits -= lookup->longest_chain;
-
-	Uint4 scan_range_temp = (scan_range[1]+lookup->lut_word_length - scan_range[0]);
-
-	int current_subject_id = subject->oid;
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
-#if LOG_TIME
-	  slogfile.Start();
-#endif
-	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
-	{	
-		//printf("%d,\n", current_subject_id);
-		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(scan_range_temp)/4));
-		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (scan_range_temp) / 4 , cudaMemcpyHostToDevice));
-	}
-#if LOG_TIME
-	slogfile.End();
-	slogfile.addTotalTime("Scan CPU -> GPU Memory Time",slogfile.elaplsedTime(), false);
-#endif
-	total_hits = s_gpu_BlastSmallNaScanSubject_8_4_p1_v2(scan_range_temp,p_scanMultiDBAuxWrap, p_smallAuxWrap,lookup_wrap,subject,offset_pairs,max_hits,scan_range);
-	total_hits = s_gpu_BlastSmallNaScanSubject_8_4_p2_v2(total_hits,p_scanMultiDBAuxWrap, p_smallAuxWrap, lookup_wrap,subject,offset_pairs,max_hits,scan_range);
-
-	scan_range[0] = scan_range[1]+lookup->lut_word_length;
-
-	return total_hits;
-}
-
-
-Int4 
-	s_gpu_BlastSmallNaExtendAlignedOneByte(BlastOffsetPair * offset_pairs, Int4 num_hits,
-	const BlastInitialWordParameters * word_params,
-	LookupTableWrap * lookup_wrap,
-	BLAST_SequenceBlk * query,
-	BLAST_SequenceBlk * subject, Int4 ** matrix,
-	BlastQueryInfo * query_info,
-	Blast_ExtendWord * ewp,
-	BlastInitHitList * init_hitlist,
-	Uint4 s_range )
-{
-	Int4 hits_extended = 0;
-	Int4 word_length, lut_word_length;
-	BlastSmallNaLookupTable *lut = (BlastSmallNaLookupTable *) lookup_wrap->lut;
-	word_length = lut->word_length;
-	lut_word_length = lut->lut_word_length;
-
-	int current_subject_id = subject->oid;
-
-	unsigned int exact_hits_num = 0;
-
-	Int4 threadNum = 512;
-	Int4 blockNum_Ex = (num_hits + threadNum - 1)/threadNum;
-	dim3 gridDim_Ex(blockNum_Ex, 1);
-	dim3 blockDim_Ex(threadNum, 1);
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaSmallTableAuxWrap* p_smallAuxWrap = (cudaSmallTableAuxWrap*) gpu_obj.m_local;
-
-	//checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-
-	//printf("id:%d,num_his:%d \n", p_scanMultiDBAuxWrap->subject_id,num_hits);
-#if LOG_TIME
-	slogfile.KernelStart();
-#endif
-
-	kernel_s_BlastSmallNaExtendAlignedOneByte<<<gridDim_Ex, blockDim_Ex>>> (
-		(Uint1*)p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_smallAuxWrap->query_compressed_nuc_seq_start,
-		word_length,
-		lut_word_length,	
-		num_hits,
-		p_scanMultiDBAuxWrap->offsetPairs,p_scanMultiDBAuxWrap->over_offset_pairs,  
-		&p_scanMultiDBAuxWrap->counter[2], 
-		s_range,
-		p_smallAuxWrap->contextinfo,
-		query_info->last_context,
-		query->length);
-	getLastCudaError("kernel_s_BlastSmallExtend() execution failed.\n");
-#if LOG_TIME
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("extend_kernel_time", slogfile.KernelElaplsedTime(), false);
-#endif
-	checkCudaErrors(cudaMemcpy(&exact_hits_num, &p_scanMultiDBAuxWrap->counter[2], sizeof(Uint4), cudaMemcpyDeviceToHost));
-	slogfile.addTotalNum("Small_extended hits", exact_hits_num,false);
-#if LOG_TIME
-	__int64 c1 = 0,c2 = 0;
-#endif
-	if (exact_hits_num >0)
-	{
-#if LOG_TIME
-		c1 = slogfile.Start();
-#endif
-		//thrust::device_ptr<BlastOffsetPair> dev_ptr(p_scanMultiDBAuxWrap->over_offset_pairs);
-		//thrust::sort(dev_ptr,dev_ptr+exact_hits_num,OffsetPairCmp());
-		checkCudaErrors(cudaMemcpy(offset_pairs, p_scanMultiDBAuxWrap->over_offset_pairs, exact_hits_num * sizeof(BlastOffsetPair), cudaMemcpyDeviceToHost));
-#if LOG_TIME		
-		c2 = slogfile.End();
-		slogfile.addTotalTime("GPU->CPU memory Time", c1, c2, false);
-#endif
-		
-		thrust::sort(offset_pairs,offset_pairs+exact_hits_num,OffsetPairCmp());
-	}
-#if LOG_TIME
-	c1 = slogfile.Start();
-#endif
-	if (exact_hits_num >0)
-	{  
-		if (word_params->container_type == eDiagHash) {
-			for(int i=0; i<exact_hits_num; i++){
-				Int4 s_offset = offset_pairs[i].qs_offsets.s_off;
-				Int4 q_offset = offset_pairs[i].qs_offsets.q_off;
-				hits_extended += s_BlastnDiagHashExtendInitialHit(query, subject, 
-					q_offset, s_offset,  
-					lut->masked_locations, 
-					query_info, s_range, 
-					word_length, lut_word_length,
-					lookup_wrap,
-					word_params, matrix,
-					ewp->hash_table,
-					init_hitlist);
-			}
-		}
-		else{
-#pragma omp parallel for
-			for(int i=0; i<exact_hits_num; i++){
-				Int4 s_offset = offset_pairs[i].qs_offsets.s_off;
-				Int4 q_offset = offset_pairs[i].qs_offsets.q_off;	
-				hits_extended += s_BlastnDiagTableExtendInitialHit(query, subject, 
-					q_offset, s_offset,  
-					lut->masked_locations, 
-					query_info, s_range, 
-					word_length, lut_word_length,
-					lookup_wrap,
-					word_params, matrix,
-					ewp->diag_table,
-					init_hitlist);
-			}
-		}
-
-
-	}
-
-#if LOG_TIME
-	c2 = slogfile.End();
-	slogfile.addTotalTime("Hits extend time",c1,c2, false);
-#endif
-	return hits_extended; 
-}
-
-//////////////////////////////////////////////////////////////////////////
-/** Wrapper structure for different types of cuda structures */
-struct cudaMBHashAuxWrap : public GpuObject
-{
-	PV_ARRAY_TYPE* lookupArray;
-	Int4 * hashtable;
-	Int4 * next_pos;
-	Int4 next_pos_len;
-	Uint1 * query;
-} ;
-
-//static cudaMBHashAuxWrap p_MBHashWrap->;
-
-//////////////////////////////////////////////////////////////////////////
-//extend
-//////////////////////////////////////////////////////////////////////////
-void InitMBLookupTableTexture(cudaMBHashAuxWrap& p_MBHashWrap, LookupTableWrap* lookup_wrap)
-{
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Int4 pv_size = mb_lt->hashsize/(1<<mb_lt->pv_array_bts);
-
-	PV_ARRAY_TYPE* d_lookupArray = NULL;
-	//create cuda array
-	checkCudaErrors(cudaMalloc( (void**) &d_lookupArray, pv_size *sizeof(PV_ARRAY_TYPE)));
-	checkCudaErrors(cudaMemcpy( d_lookupArray, mb_lt->pv_array, pv_size * sizeof (PV_ARRAY_TYPE), cudaMemcpyHostToDevice));
-	// Bind the array to the texture
-	SET_PVARRAY_BASE;
-
-	p_MBHashWrap.lookupArray = d_lookupArray;
-}
-
-void InitMBQueryGPUMem(LookupTableWrap * lookup_wrap,	BLAST_SequenceBlk * query)
-{
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	if (gpu_obj.m_local == NULL)
-	{
-		//unsigned int * d_exact_hits_num;
-		Int4 * d_hashtable, *d_next_pos;
-		Uint1 * d_query;
-		//BlastOffsetPair *d_exact_offset_pairs;
-		BlastMBLookupTable *lut = (BlastMBLookupTable *) lookup_wrap->lut;
-
-		Uint4 biggest_hashSize = lut->hashsize;
-		Uint4 biggest_length_next = query->length+1;
-		Uint4 biggest_length	  = query->length;
-
-		checkCudaErrors(cudaMalloc((void **) &d_hashtable, biggest_hashSize * sizeof(Int4))); // lut->hashsize for biggeest size
-		checkCudaErrors(cudaMalloc((void **) &d_next_pos, biggest_length_next * sizeof(Int4)));  // (query->length+1) for biggest size
-		checkCudaErrors(cudaMalloc((void **) &d_query, biggest_length * sizeof(Uint1)));	 // query->length for biggest size
-
-		checkCudaErrors(cudaMemcpy(d_hashtable, lut->hashtable, sizeof(Int4) * biggest_hashSize, cudaMemcpyHostToDevice));
-		checkCudaErrors(cudaMemcpy(d_next_pos, lut->next_pos, sizeof(Int4) * biggest_length_next, cudaMemcpyHostToDevice));
-		checkCudaErrors(cudaMemcpy(d_query, query->sequence, sizeof(Uint1) * biggest_length, cudaMemcpyHostToDevice));
-
-		cudaMBHashAuxWrap* p_MBHashWrap = new cudaMBHashAuxWrap();
-		p_MBHashWrap->hashtable = d_hashtable;
-		p_MBHashWrap->next_pos = d_next_pos;
-		p_MBHashWrap->query = d_query;
-		p_MBHashWrap->next_pos_len = biggest_length_next;
-
-		InitMBLookupTableTexture(*p_MBHashWrap, lookup_wrap);
-
-		gpu_obj.m_local = p_MBHashWrap;
-	}
-}
-
-void ReleaseMBQueryGPUMem()
-{
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	if (gpu_obj.m_local != NULL)
-	{
-		cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
-
-		checkCudaErrors(cudaFree(p_MBHashWrap->hashtable));
-		checkCudaErrors(cudaFree(p_MBHashWrap->next_pos));
-		checkCudaErrors(cudaFree(p_MBHashWrap->query));
-		checkCudaErrors(cudaFree(p_MBHashWrap->lookupArray));
-#if USE_TEXTURE
-		checkCudaErrors(cudaUnbindTexture(tx_pv_array));
-#endif
-
-		delete p_MBHashWrap;		
-		gpu_obj.m_local = NULL;
-	}
-}
-
-/** Scan the compressed subject sequence, returning 11-letter word hits
-* with stride two plus a multiple of four. Assumes a megablast lookup table
-* @param lookup_wrap Pointer to the (wrapper to) lookup table [in]
-* @param subject The (compressed) sequence to be scanned for words [in]
-* @param offset_pairs Array of query and subject positions where words are 
-*                found [out]
-* @param max_hits The allocated size of the above array - how many offsets 
-*        can be returned [in]
-* @param scan_range The starting and ending pos to be scanned [in] 
-*        on exit, scan_range[0] is updated to be the stopping pos [out]
-*/
-Int4 
-	s_gpu_MBScanSubject_11_2Mod4_scankernel_Opt_v3_1(Uint4 scan_range_temp,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaMBHashAuxWrap* p_MBHashWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-	Int4 top_shift =2; 
-	Int4 pv_array_bts = mb_lt->pv_array_bts;
-
-	int current_subject_id = subject->oid;
-
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //初始化为0
-
-	static int blocksize_x = SHARE_MEM_SIZE/2;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-	//scan_range_temp = (scan_range_temp/16) + (scan_range_temp%16);
-	scan_range_temp = scan_range_temp/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-	slogfile.KernelStart();
-	//printf("%d %d\n", gridSize.x, blockSize.x);
-
-	gpu_blastn_scan_11_2mod4_v3<<< gridSize, blockSize >>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id], 
-		p_scanMultiDBAuxWrap->offsetPairs, 
-		p_scanMultiDBAuxWrap->total_hits, 
-		scan_range_temp, 
-		scan_range[0], 
-		top_shift, 
-		pv_array_bts,
-		global_size,
-		p_MBHashWrap->lookupArray); 
-
-	getLastCudaError("gpu_blastn_scan_11_2mod4_v3() execution failed.\n");
-
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
-
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->total_hits, sizeof(Uint4), cudaMemcpyDeviceToHost));
-
-	return total_hits;
-}
-
-Int4 
-	s_gpu_MBScanSubject_11_2Mod4_scankernel_Opt_v3_2(int total_hits,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaMBHashAuxWrap* p_MBHashWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	if (total_hits > 0)
-	{
-		Int4 threadNum = 512;
-		Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
-		dim3 gridDim(blockNum, 1);
-		dim3 blockDim(threadNum, 1);
-
-		checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-
-		slogfile.KernelStart();
-		//cout << total_hits << endl; 
-
-		kernel_lookupInBigHashTable_v3<<<gridDim,blockDim>>>(
-			p_MBHashWrap->hashtable,
-			p_MBHashWrap->next_pos,
-			total_hits,
-			p_scanMultiDBAuxWrap->offsetPairs,
-			p_scanMultiDBAuxWrap->over_offset_pairs,
-			p_scanMultiDBAuxWrap->over_hits_num,
-			p_MBHashWrap->next_pos_len
-			);
-		getLastCudaError("kernel_lookupInBigHashTable_v3() execution failed.\n");
-		slogfile.KernelEnd();
-		slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime(), false );
-
-		checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
-		slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits, false);
-	}
-	
-	return total_hits;
-}
-Int4 
-	s_gpu_MBScanSubject_11_2Mod4_scankernel_Opt_v3(const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-
-	max_hits -= mb_lt->longest_chain;
-	ASSERT(lookup_wrap->lut_type == eMBLookupTable);
-	ASSERT(mb_lt->lut_word_length == 11);
-	if(scan_range[0] > scan_range[1]) return 0;
-
-	
-	Uint4 scan_range_temp = (scan_range[1]+mb_lt->lut_word_length - scan_range[0]);
-
-	Uint4 subject_len = subject->length;
-	int current_subject_id = subject->oid;
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
-
-	slogfile.Start();
-	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
-	{
-		//printf("id:%d\n", p_scanMultiDBAuxWrap->subject_id);
-		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len/4)));
-		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
-	}
-	slogfile.End();
-	slogfile.addTotalTime("Scan CPU -> GPU Memory Time",slogfile.elaplsedTime(),false);
-
-	total_hits = s_gpu_MBScanSubject_11_2Mod4_scankernel_Opt_v3_1(scan_range_temp, p_scanMultiDBAuxWrap, p_MBHashWrap, lookup_wrap,subject,offset_pairs,max_hits, scan_range);
-	total_hits = s_gpu_MBScanSubject_11_2Mod4_scankernel_Opt_v3_2(total_hits, p_scanMultiDBAuxWrap, p_MBHashWrap,lookup_wrap,subject,offset_pairs,max_hits, scan_range);
-
-	scan_range[0] = scan_range[1]+mb_lt->lut_word_length;
-
-	return total_hits;
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-Int4 
-	s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3_1(Uint4 scan_range_temp,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaMBHashAuxWrap* p_MBHashWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-	Int4 top_shift =2; 
-	Int4 pv_array_bts = mb_lt->pv_array_bts;
-
-	int current_subject_id = subject->oid;
-
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //初始化为0
-
-	static int blocksize_x = SHARE_MEM_SIZE/2;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-	//scan_range_temp = (scan_range_temp/16) + (scan_range_temp%16);
-	scan_range_temp = scan_range_temp/4;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-	slogfile.KernelStart();
-	//printf("%d %d\n", gridSize.x, blockSize.x);
-
-
-
-	gpu_blastn_scan_11_1mod4_v3<<< gridSize, blockSize >>>(
-	//gpu_blastn_scan_11_1mod4_opt<<< gridSize, blockSize >>>(
-		(Uint1*)p_scanMultiDBAuxWrap->subject[current_subject_id], 
-		p_scanMultiDBAuxWrap->offsetPairs, 
-		p_scanMultiDBAuxWrap->total_hits, 
-		scan_range_temp, 
-		scan_range[0], 
-		top_shift, 
-		pv_array_bts,
-		global_size,
-		p_MBHashWrap->lookupArray); 
-
-	getLastCudaError("gpu_blastn_scan_11_1mod4() execution failed.\n");
-
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
-
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->total_hits, sizeof(Uint4), cudaMemcpyDeviceToHost));
-
-	return total_hits;
-}
-
-//////////////////////////////////////////////////////////////////////////
-Int4 
-	s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_1(Uint4 scan_range_temp,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaMBHashAuxWrap* p_MBHashWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-	Int4 top_shift =2; 
-	Int4 pv_array_bts = mb_lt->pv_array_bts;
-
-	int current_subject_id = subject->oid;
-
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //初始化为0
-
-	static int blocksize_x = BLOCK_SIZE_V1;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-	//scan_range_temp = (scan_range_temp/16) + (scan_range_temp%16);
-	scan_range_temp = scan_range_temp/16;
-	gridSize.x = (scan_range_temp-1/*+ blockSize.x -1*/)/blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-	slogfile.KernelStart();
-	printf("%d %d\n", gridSize.x, blockSize.x);  
-	gpu_blastn_scan_11_1mod4_opt_v1<<< gridSize, blockSize >>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id], 
-		p_scanMultiDBAuxWrap->offsetPairs, 
-		p_scanMultiDBAuxWrap->total_hits, 
-		scan_range_temp, 
-		scan_range[0], 
-		top_shift, 
-		pv_array_bts,
-		global_size,
-		p_MBHashWrap->lookupArray); 
-
-	getLastCudaError("gpu_blastn_scan_11_1mod4() execution failed.\n");
-
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
-
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->total_hits, sizeof(Uint4), cudaMemcpyDeviceToHost));
-
-	return total_hits;
-}
-
-Int4 
-	s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3_2(int total_hits,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaMBHashAuxWrap* p_MBHashWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	if (total_hits >0)
-	{
-		Int4 threadNum = 512;
-		Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
-		dim3 gridDim(blockNum, 1);
-		dim3 blockDim(threadNum, 1);
-
-		checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-
-		slogfile.KernelStart();
-		//cout << total_hits << endl; 
-
-		kernel_lookupInBigHashTable_v3<<<gridDim,blockDim>>>(
-			p_MBHashWrap->hashtable,
-			p_MBHashWrap->next_pos,
-			total_hits,
-			p_scanMultiDBAuxWrap->offsetPairs,
-			p_scanMultiDBAuxWrap->over_offset_pairs,
-			p_scanMultiDBAuxWrap->over_hits_num,
-			p_MBHashWrap->next_pos_len
-			);
-		getLastCudaError("kernel_lookupInBigHashTable_v3() execution failed.\n");
-		slogfile.KernelEnd();
-		slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime(), false );
-
-		checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
-		slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits, false);
-
-
-		slogfile.Start();
-		checkCudaErrors(cudaMemcpy(offset_pairs, p_scanMultiDBAuxWrap->over_offset_pairs, total_hits* sizeof(BlastOffsetPair), cudaMemcpyDeviceToHost));	 	
-		slogfile.End();
-		slogfile.addTotalTime("GPU->CPU memory Time", slogfile.elaplsedTime(), false);
-		thrust::sort(offset_pairs,offset_pairs+total_hits,OffsetPairCmp());
-	}
-	return total_hits;
-}
-
-Int4 
-	s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3(const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-
-	max_hits -= mb_lt->longest_chain;
-	ASSERT(lookup_wrap->lut_type == eMBLookupTable);
-	ASSERT(mb_lt->lut_word_length == 11);
-	if(scan_range[0] > scan_range[1]) return 0;
-
-
-	Uint4 scan_range_temp = (scan_range[1]+mb_lt->lut_word_length - scan_range[0]);
-
-	Uint4 subject_len = subject->length;
-	int current_subject_id = subject->oid;
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
-
-	slogfile.Start();
-	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
-	{
-		//cout <<"id:" << current_subject_id <<"\t";
-		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len)/4));
-		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
-	}
-	slogfile.End();
-	slogfile.addTotalTime("Scan CPU -> GPU Memory Time",slogfile.elaplsedTime(),false);
-
-	total_hits = s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3_1(scan_range_temp, p_scanMultiDBAuxWrap, p_MBHashWrap, lookup_wrap,subject,offset_pairs,max_hits, scan_range);
-	//total_hits = s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_1(scan_range_temp, p_scanMultiDBAuxWrap, p_MBHashWrap, lookup_wrap,subject,offset_pairs,max_hits, scan_range);
-	total_hits = s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3_2(total_hits, p_scanMultiDBAuxWrap, p_MBHashWrap,lookup_wrap,subject,offset_pairs,max_hits, scan_range);
-
-	scan_range[0] = scan_range[1]+mb_lt->lut_word_length;
-
-	//exit(0); //
-	return total_hits;
-}
-//////////////////////////////////////////////////////////////////////////
-
-
-Int4 
-	s_gpu_MBScanSubject_Any_scankernel_Opt_v3_1(Uint4 scan_range_temp,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaMBHashAuxWrap* p_MBHashWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-
-	Int4 mask = mb_lt->hashsize - 1;
-	max_hits -= mb_lt->longest_chain;
-
-	Int4 shift = 2*(16 - (scan_range[0] % COMPRESSION_RATIO + mb_lt->lut_word_length));
-	Uint4 pv_array_bts = mb_lt->pv_array_bts;
-
-	int current_subject_id = subject->oid;
-
-	static int blocksize_x = SHARE_MEM_SIZE/2;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-	scan_range_temp = scan_range_temp/16;
-	gridSize.x = (scan_range_temp+ blockSize.x -1)/ blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x;
-
-	slogfile.KernelStart();
-	gpu_blastn_scan_Any_v3<<< gridSize, blockSize >>>(
-		p_scanMultiDBAuxWrap->subject[current_subject_id], 
-		p_scanMultiDBAuxWrap->offsetPairs, 
-		p_scanMultiDBAuxWrap->total_hits, 
-		scan_range_temp, 
-		scan_range[0],
-		mask,
-		shift,
-		pv_array_bts,
-		global_size,
-		p_MBHashWrap->lookupArray);
-	getLastCudaError("gpu_blastn_scan_Any_v3() execution failed.\n");
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
-
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->total_hits, sizeof(Uint4), cudaMemcpyDeviceToHost));
-	
-	return total_hits;
-}
-Int4 
-	s_gpu_MBScanSubject_Any_scankernel_Opt_v3_2(int total_hits,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaMBHashAuxWrap* p_MBHashWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	if (total_hits > 0)
-	{
-		Int4 threadNum = 512;
-		Int4 blockNum = (total_hits + threadNum - 1)/threadNum;
-		dim3 gridDim(blockNum, 1);
-		dim3 blockDim(threadNum, 1); 
-
-		checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-
-		slogfile.KernelStart();	 
-		kernel_lookupInBigHashTable_v3<<<gridDim,blockDim>>>(
-			p_MBHashWrap->hashtable,
-			p_MBHashWrap->next_pos,
-			total_hits,
-			p_scanMultiDBAuxWrap->offsetPairs,
-			p_scanMultiDBAuxWrap->over_offset_pairs,
-			p_scanMultiDBAuxWrap->over_hits_num,
-			p_MBHashWrap->next_pos_len
-			);
-
-		getLastCudaError("kernel_lookupInBigHashTable_v3() execution failed.\n");
-		slogfile.KernelEnd();
-		slogfile.addTotalTime("lookup_kernel_time", slogfile.KernelElaplsedTime(), false );
-		checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
-		slogfile.addTotalNum("Kernel_lookupInBigHashTable hits", total_hits, false);
-	}
-	return total_hits;
-}
-Int4 
-	s_gpu_MBScanSubject_Any_scankernel_Opt_v3(const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-	max_hits -= mb_lt->longest_chain;
-	ASSERT(lookup_wrap->lut_type == eMBLookupTable);
-	ASSERT(mb_lt->lut_word_length == 11||
-		mb_lt->lut_word_length == 12);
-	if(scan_range[0] > scan_range[1]) return 0;
-
-	Uint4 scan_range_temp = (scan_range[1] - scan_range[0]);
-
-	Uint4 subject_len = subject->length; //length is bp, 2bit.
-	int current_subject_id = subject->oid;
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
-
-	slogfile.Start();
-	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
-	{	
-		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		//printf("id:%d\n", p_scanMultiDBAuxWrap->subject_id);
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len/4)));
-		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
-	}
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //初始化为0
-
-	slogfile.End();
-	slogfile.addTotalTime("Scan CPU -> GPU Memory Time",slogfile.elaplsedTime(),false);
-
-	total_hits = s_gpu_MBScanSubject_Any_scankernel_Opt_v3_1(scan_range_temp, p_scanMultiDBAuxWrap, p_MBHashWrap,lookup_wrap,subject,offset_pairs,max_hits,scan_range);
-	total_hits = s_gpu_MBScanSubject_Any_scankernel_Opt_v3_2(total_hits, p_scanMultiDBAuxWrap, p_MBHashWrap,lookup_wrap,subject,offset_pairs,max_hits,scan_range);
-
-	scan_range[0] = scan_range[1]+mb_lt->lut_word_length;
-
-	return total_hits;
-}
-
-//////////////////////////////////////////////////////////////////////////
-///MiniExtend
-//////////////////////////////////////////////////////////////////////////
-
-Int4 
-	s_gpu_BlastNaExtend_Opt_v3(BlastOffsetPair * offset_pairs, Int4 num_hits,
-	const BlastInitialWordParameters * word_params,
-	LookupTableWrap * lookup_wrap,
-	BLAST_SequenceBlk * query,
-	BLAST_SequenceBlk * subject, Int4 ** matrix,
-	BlastQueryInfo * query_info,
-	Blast_ExtendWord * ewp,
-	BlastInitHitList * init_hitlist,
-	Uint4 s_range )
-{
-	Int4 hits_extended = 0;
-	Int4 word_length, lut_word_length;
-	BlastSeqLoc* masked_locations = NULL;
-	BlastMBLookupTable *lut = (BlastMBLookupTable *) lookup_wrap->lut;
-	word_length = lut->word_length;
-	lut_word_length = lut->lut_word_length;
-	masked_locations = lut->masked_locations;
-	int current_subject_id = subject->oid;
-
-	unsigned int exact_hits_num = 0;
-
-	Int4 threadNum = 256;
-	Int4 blockNum_Ex = (num_hits + threadNum - 1)/threadNum;
-	dim3 gridDim_Ex(blockNum_Ex, 1);
-	dim3 blockDim_Ex(threadNum, 1);
-
-	//printf("%d, %d\n", threadNum, blockNum_Ex);
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
-
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->over_hits_num, 0, sizeof(unsigned int)));  //初始化为0
-
-	Int4 ext_to =  word_length - lut_word_length;
-
-	//printf("id:%d,num_his:%d \n", p_scanMultiDBAuxWrap->subject_id,num_hits);
-	//printf("query length:%d\n", query->length);
-
-	slogfile.KernelStart();
-
-	kernel_s_BlastNaExtend_withoutHash_v3<<<gridDim_Ex, blockDim_Ex>>> (
-		(Uint1*)p_scanMultiDBAuxWrap->subject[current_subject_id],
-		p_MBHashWrap->query,
-		lut_word_length,
-		ext_to,		
-		num_hits,
-		p_scanMultiDBAuxWrap->over_offset_pairs, p_scanMultiDBAuxWrap->offsetPairs, 
-		p_scanMultiDBAuxWrap->over_hits_num, 
-		s_range,
-		query->length);
-
-	getLastCudaError("kernel_s_BlastNaExtend_withoutHash() v1 execution failed.\n");
-
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("extend_kernel_time", slogfile.KernelElaplsedTime(), false);
-
-	checkCudaErrors(cudaMemcpy(&exact_hits_num, p_scanMultiDBAuxWrap->over_hits_num, sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	slogfile.addTotalNum("mini_extended hits", exact_hits_num,false);
-
-	if (exact_hits_num >0)
-	{
-		//cout << "Thread: " << GetCurrentThreadId() << "offset_address" << offset_pairs << endl;
-		slogfile.Start();
-		checkCudaErrors(cudaMemcpy(offset_pairs, p_scanMultiDBAuxWrap->offsetPairs, exact_hits_num* sizeof(BlastOffsetPair), cudaMemcpyDeviceToHost));	 	
-		slogfile.End();
-		slogfile.addTotalTime("GPU->CPU memory Time", slogfile.elaplsedTime(), false);
-		thrust::sort(offset_pairs,offset_pairs+exact_hits_num,OffsetPairCmp());
-	}
-
-	__int64 c1 = slogfile.Start();
-	if (exact_hits_num >0)
-	{  
-		if (word_params->container_type == eDiagHash) {
-			for(int i=0; i<exact_hits_num; i++){
-				Int4 s_offset = offset_pairs[i].qs_offsets.s_off;
-				Int4 q_offset = offset_pairs[i].qs_offsets.q_off;
-				hits_extended += s_BlastnDiagHashExtendInitialHit(query, subject, 
-					q_offset, s_offset,  
-					masked_locations, 
-					query_info, s_range, 
-					word_length, lut_word_length,
-					lookup_wrap,
-					word_params, matrix,
-					ewp->hash_table,
-					init_hitlist);
-			}
-		}
-		else{
-			for(int i=0; i<exact_hits_num; i++){
-				Int4 s_offset = offset_pairs[i].qs_offsets.s_off;
-				Int4 q_offset = offset_pairs[i].qs_offsets.q_off;	
-				hits_extended += s_BlastnDiagTableExtendInitialHit(query, subject, 
-					q_offset, s_offset,  
-					lut->masked_locations, 
-					query_info, s_range, 
-					word_length, lut_word_length,
-					lookup_wrap,
-					word_params, matrix,
-					ewp->diag_table,
-					init_hitlist);
-			}
-		}
-	}
-
-
-	__int64 c2 = slogfile.End();
-	slogfile.addTotalTime("Hits extend time",c1,c2, false);
-
-	return hits_extended; 
-}
-
-//////////////////////////////////////////////////////////////////////////
-//For blastn extend
-Int4
-	s_new_BlastNaExtendDirect(BlastOffsetPair * offset_pairs, Int4 num_hits,
-	const BlastInitialWordParameters * word_params,
-	LookupTableWrap * lookup_wrap,
-	BLAST_SequenceBlk * query,
-	BLAST_SequenceBlk * subject, Int4 ** matrix,
-	BlastQueryInfo * query_info,
-	Blast_ExtendWord * ewp,
-	BlastInitHitList * init_hitlist,
-	Uint4 s_range)
-{
-	Int4 index = 0;
-	Int4 hits_extended = 0;
-	Int4 word_length;
-
-	if (lookup_wrap->lut_type == eMBLookupTable) {
-		BlastMBLookupTable *lut = (BlastMBLookupTable *) lookup_wrap->lut;
-		word_length = (lut->discontiguous) ? lut->template_length : lut->word_length;
-		ASSERT(word_length == lut->lut_word_length || lut->discontiguous);
-	} 
-	else if (lookup_wrap->lut_type == eSmallNaLookupTable) {
-		BlastSmallNaLookupTable *lut = 
-			(BlastSmallNaLookupTable *) lookup_wrap->lut;
-		word_length = lut->word_length;
-	} 
-	else {
-		BlastNaLookupTable *lut = (BlastNaLookupTable *) lookup_wrap->lut;
-		word_length = lut->word_length;
-	}
-
-	if (word_params->container_type == eDiagHash) {
-		for (; index < num_hits; ++index) {
-			Int4 s_offset = offset_pairs[index].qs_offsets.s_off;
-			Int4 q_offset = offset_pairs[index].qs_offsets.q_off;
-
-			hits_extended += s_BlastnDiagHashExtendInitialHit(query, subject, 
-				q_offset, s_offset,  
-				NULL,
-				query_info, s_range, 
-				word_length, word_length,
-				lookup_wrap,
-				word_params, matrix,
-				ewp->hash_table,
-				init_hitlist);
-		}
-	} 
-	else {
-		for (; index < num_hits; ++index) {
-			Int4 s_offset = offset_pairs[index].qs_offsets.s_off;
-			Int4 q_offset = offset_pairs[index].qs_offsets.q_off;
-
-			hits_extended += s_BlastnDiagTableExtendInitialHit(query, subject, 
-				q_offset, s_offset,  
-				NULL,
-				query_info, s_range, 
-				word_length, word_length,
-				lookup_wrap,
-				word_params, matrix,
-				ewp->diag_table,
-				init_hitlist);
-		}
-	}
-	return hits_extended;
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-//dis
-
-Int4 
-	s_gpu_MB_DiscWordScanSubject_11_18_1_p1(Uint4 scan_range_temp,
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap,
-	cudaMBHashAuxWrap* p_MBHashWrap,
-	const LookupTableWrap* lookup_wrap,
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits,  
-	Int4* scan_range)
-{
-
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-	Int4 top_shift =2; 
-	Int4 pv_array_bts = mb_lt->pv_array_bts;
-
-	int current_subject_id = subject->oid;
-
-	checkCudaErrors(cudaMemset(p_scanMultiDBAuxWrap->total_hits, 0, sizeof(unsigned int)));  //初始化为0
-
-	static int blocksize_x = SHARE_MEM_SIZE/2;
-	dim3 blockSize(blocksize_x);
-	dim3 gridSize;
-	//scan_range_temp = (scan_range_temp/16) + (scan_range_temp%16);
-	scan_range_temp = scan_range_temp/16;
-	gridSize.x = (scan_range_temp-1/*+ blockSize.x -1*/)/blockSize.x;
-
-	static int max_grid_size = 16384;
-	if (gridSize.x > max_grid_size)
-	{
-		gridSize.x = max_grid_size;
-	}
-
-	Uint4 global_size = gridSize.x;
-	global_size *= blocksize_x*4;
-
-	slogfile.KernelStart();
-	//printf("%d %d\n", gridSize.x, blockSize.x);  
-	s_gpu_MB_DiscWordScanSubject_11_18_1<<< gridSize, blockSize >>>(
-		(Uint1*)p_scanMultiDBAuxWrap->subject[current_subject_id], 
-		p_scanMultiDBAuxWrap->offsetPairs, 
-		p_scanMultiDBAuxWrap->total_hits, 
-		scan_range_temp, 
-		scan_range[0], 
-		top_shift, 
-		pv_array_bts,
-		global_size,
-		p_MBHashWrap->lookupArray); 
-
-	getLastCudaError("s_gpu_MB_DiscWordScanSubject_11_18_1() execution failed.\n");
-
-	slogfile.KernelEnd();
-	slogfile.addTotalTime("scan_kernel_time", slogfile.KernelElaplsedTime(),false);
-
-	checkCudaErrors(cudaMemcpy(&total_hits, p_scanMultiDBAuxWrap->total_hits, sizeof(Uint4), cudaMemcpyDeviceToHost));
-
-	return total_hits;
-}
-
-Int4 s_gpu_MB_DiscWordScanSubject_11_18_1(
-	const LookupTableWrap* lookup_wrap, 
-	const BLAST_SequenceBlk* subject,
-	BlastOffsetPair* NCBI_RESTRICT offset_pairs, Int4 max_hits, 
-	Int4* scan_range)
-{
-	BlastMBLookupTable* mb_lt = (BlastMBLookupTable*) lookup_wrap->lut;
-	Uint4 total_hits = 0;
-
-	max_hits -= mb_lt->longest_chain;
-	ASSERT(lookup_wrap->lut_type == eMBLookupTable);
-	ASSERT(mb_lt->lut_word_length == 11);
-	ASSERT(mb_lt->template_length == 18);
-	ASSERT(mb_lt->template_type == eDiscTemplate_11_18_Coding);
-	if(scan_range[0] > scan_range[1]) return 0;
-
-
-	Uint4 scan_range_temp = (scan_range[1]+mb_lt->template_length - scan_range[0]);
-
-	Uint4 subject_len = subject->length;
-	int current_subject_id = subject->oid;
-
-	GpuHandle * gpu_handle = BlastMGPUUtil.GetCurrentGPUHandle();
-	GpuData& gpu_obj = gpu_handle->Data;
-	cudaScanAuxWrapMultiQueries* p_scanMultiDBAuxWrap = (cudaScanAuxWrapMultiQueries*) gpu_obj.m_global;
-	cudaMBHashAuxWrap* p_MBHashWrap = (cudaMBHashAuxWrap*) gpu_obj.m_local;
-
-	slogfile.Start();
-	if (p_scanMultiDBAuxWrap->subject[current_subject_id] == NULL)
-	{
-		//cout <<"id:" << current_subject_id <<"\t";
-		p_scanMultiDBAuxWrap->subject_id = current_subject_id;
-		checkCudaErrors(cudaMalloc((void **)&p_scanMultiDBAuxWrap->subject[current_subject_id],(subject_len)/4));
-		checkCudaErrors(cudaMemcpy(p_scanMultiDBAuxWrap->subject[current_subject_id], subject->sequence, (subject_len)/4 , cudaMemcpyHostToDevice));
-	}
-	slogfile.End();
-	slogfile.addTotalTime("Scan CPU -> GPU Memory Time",slogfile.elaplsedTime(),false);
-
-	total_hits = s_gpu_MB_DiscWordScanSubject_11_18_1_p1(scan_range_temp, p_scanMultiDBAuxWrap, p_MBHashWrap, lookup_wrap,subject,offset_pairs,max_hits, scan_range);
-	//total_hits = s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_1(scan_range_temp, p_scanMultiDBAuxWrap, p_MBHashWrap, lookup_wrap,subject,offset_pairs,max_hits, scan_range);
-	total_hits = s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3_2(total_hits, p_scanMultiDBAuxWrap, p_MBHashWrap,lookup_wrap,subject,offset_pairs,max_hits, scan_range);
-
-	scan_range[0] = scan_range[1]+mb_lt->lut_word_length;
-
-	//exit(0); //
-	return total_hits;
-}
+void ReleaseMBQueryGPUMem() { ReleaseSmallQueryGPUMem(); }
+
+#define DEFINE_SCAN(name) \
+Int4 name(const LookupTableWrap* l, const BLAST_SequenceBlk* s, BlastOffsetPair* p, Int4 n, Int4* r) \
+{ return ScanSubject(l, s, p, n, r); }
+DEFINE_SCAN(s_gpu_MBScanSubject_8_1Mod4_scankernel_Opt_v3)
+DEFINE_SCAN(s_gpu_BlastSmallNaScanSubject_8_4)
+DEFINE_SCAN(s_gpu_BlastSmallNaScanSubject_8_4_v2)
+DEFINE_SCAN(s_gpu_MBScanSubject_11_2Mod4_scankernel_Opt_v3)
+DEFINE_SCAN(s_gpu_MBScanSubject_11_1Mod4_scankernel_Opt_v3)
+DEFINE_SCAN(s_gpu_MBScanSubject_Any_scankernel_Opt_v3)
+DEFINE_SCAN(s_gpu_MB_DiscWordScanSubject_11_18_1)
+#undef DEFINE_SCAN
+#define DEFINE_EXTEND(name, aligned, direct) \
+Int4 name(const BlastOffsetPair* p, Int4 n, const BlastInitialWordParameters* w, LookupTableWrap* l, \
+    BLAST_SequenceBlk* q, BLAST_SequenceBlk* s, Int4** m, BlastQueryInfo* i, \
+    Blast_ExtendWord* e, BlastInitHitList* h, Uint4 r) \
+{ return Extend(const_cast<BlastOffsetPair*>(p), n, w, l, q, s, m, i, e, h, r, aligned, direct); }
+DEFINE_EXTEND(s_gpu_BlastSmallExtend_v3, false, false)
+DEFINE_EXTEND(s_gpu_BlastSmallNaExtendAlignedOneByte, true, false)
+DEFINE_EXTEND(s_gpu_BlastNaExtend_Opt_v3, false, false)
+DEFINE_EXTEND(s_new_BlastNaExtendDirect, false, true)
+#undef DEFINE_EXTEND

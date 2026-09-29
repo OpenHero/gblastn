@@ -1,0 +1,49 @@
+[1/3] STEP 1/2: FROM docker.io/nvidia/cuda:13.2.1-devel-ubuntu24.04@sha256:44a9504c6dfb50b1241464241b02a93871928f373de6f5a644cf5fe9f080aa63 AS devel
+[1/3] STEP 2/2: RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends     build-essential gcc-13 g++-13 perl python3 zlib1g-dev libbz2-dev ca-certificates     && rm -rf /var/lib/apt/lists/*
+--> Using cache e91465ebcf592b812f777d4e5f03eae9deced8fe438131d22726c5e14f71db5e
+--> e91465ebcf59
+[2/3] STEP 1/10: FROM e91465ebcf592b812f777d4e5f03eae9deced8fe438131d22726c5e14f71db5e AS build
+[2/3] STEP 2/10: ARG JOBS=4
+--> Using cache 7ef812af27ca308e9627a0e38edae00d096876f456f1b97e626b491dcdb444a0
+--> 7ef812af27ca
+[2/3] STEP 3/10: ARG CUDA_ARCH=110
+--> Using cache c0729ff44cb579f1473552b9017dd82aaebe4ebfb211f590cfe4c94bdbe526a6
+--> c0729ff44cb5
+[2/3] STEP 4/10: ARG CC=gcc-13
+--> Using cache 748ad70d273a09e7965b8fae41bb66e057413b1229fb3bf749d43394443b1701
+--> 748ad70d273a
+[2/3] STEP 5/10: ARG CXX=g++-13
+--> Using cache 4b5cbb49d9c655153e9dffd25a74f27de118f674972bb9618af7dd96d9a38c3d
+--> 4b5cbb49d9c6
+[2/3] STEP 6/10: WORKDIR /src/gblastn
+--> Using cache 1aa9c4955afa851a19037bf0293b9ebeb5c050d6863973fc23443bfb55779f72
+--> 1aa9c4955afa
+[2/3] STEP 7/10: COPY c++ ./c++
+--> Using cache 650602ff5086db601daa0c7d67320233d213b892ea09cf9f18b8c491b3383083
+--> 650602ff5086
+[2/3] STEP 8/10: COPY scripts/build.sh ./scripts/build.sh
+--> Using cache fca7b000a2ed42a26f82b6c38f5b19cc435b72508e049da559e27de94f743d57
+--> fca7b000a2ed
+[2/3] STEP 9/10: COPY LICENSE.md ./LICENSE.md
+--> Using cache 5e44c3abf0f73af3167c741efa3228583775ce0313ee8b87e95dd7b443ce1b88
+--> 5e44c3abf0f7
+[2/3] STEP 10/10: RUN JOBS=${JOBS} CUDA_ARCH=${CUDA_ARCH} CC=${CC} CXX=${CXX}     BUILD_ROOT=/build/toolkit PREFIX=/opt/gblastn ./scripts/build.sh
+--> Using cache f744a9d789c9f8a75e8d57c63403fde4aa84646baec6786336ec09626b2b8c9a
+--> f744a9d789c9
+[3/3] STEP 1/7: FROM f744a9d789c9f8a75e8d57c63403fde4aa84646baec6786336ec09626b2b8c9a AS validation
+[3/3] STEP 2/7: ENTRYPOINT []
+--> Using cache ec915e6d2333280146740fdaaab456f63f0f119d66ba706c5a9a7a8de39fd704
+--> ec915e6d2333
+[3/3] STEP 3/7: COPY tests /src/gblastn/tests
+--> a1693356ac48
+[3/3] STEP 4/7: COPY tests /opt/gblastn/tests
+--> ae6fd398ab33
+[3/3] STEP 5/7: ENV PATH=/opt/gblastn/bin:${PATH}
+--> 71f62caa2e59
+[3/3] STEP 6/7: WORKDIR /work
+--> ca80ba7a46ca
+[3/3] STEP 7/7: CMD ["blastn", "-version"]
+[3/3] COMMIT gblastn:thor-validation
+--> 1de52c11cd87
+Successfully tagged localhost/gblastn:thor-validation
+1de52c11cd87fb045f99de3f3fec6d8bcebd7a8bbb65bbb54f0d08c4666cfa33

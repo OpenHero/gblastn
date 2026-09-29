@@ -1,0 +1,864 @@
+{
+  "recorded_utc": "2026-09-29T17:01:20.477395+00:00",
+  "host": "valthos-remote",
+  "working_directory": "/tmp/gblastn-thor-QB8xuZNb",
+  "runtime": "rootless Podman with user-local crun and existing NVIDIA CDI",
+  "images": {
+    "localhost/gblastn:thor": "d2e3a5ec749f912494e4590feafab3aabf27b6cc6ccbfc972d8ec37075f7c992",
+    "localhost/gblastn:thor-validation": "1de52c11cd87fb045f99de3f3fec6d8bcebd7a8bbb65bbb54f0d08c4666cfa33"
+  },
+  "suites": {
+    "final-no-device": {
+      "passed": true,
+      "command_count": 56,
+      "outer_command": {
+        "script": "/tmp/gblastn-thor-QB8xuZNb/scripts/run-container.sh",
+        "environment": {
+          "CONTAINER_ENGINE": "podman",
+          "OCI_RUNTIME": "/tmp/gblastn-thor-QB8xuZNb/runtime-tools/extracted/usr/bin/crun",
+          "WORK_DIR": "/tmp/gblastn-thor-QB8xuZNb/validation",
+          "GPU": "0",
+          "IMAGE": "localhost/gblastn:thor"
+        },
+        "arguments": [
+          "python3",
+          "/opt/gblastn/tests/acceptance.py",
+          "--suite",
+          "no-device",
+          "--work",
+          "/work/final-no-device"
+        ]
+      },
+      "sanitizer_records": []
+    },
+    "final-gpu": {
+      "passed": true,
+      "command_count": 82,
+      "outer_command": {
+        "script": "/tmp/gblastn-thor-QB8xuZNb/scripts/run-container.sh",
+        "environment": {
+          "CONTAINER_ENGINE": "podman",
+          "OCI_RUNTIME": "/tmp/gblastn-thor-QB8xuZNb/runtime-tools/extracted/usr/bin/crun",
+          "WORK_DIR": "/tmp/gblastn-thor-QB8xuZNb/validation",
+          "GPU": "1",
+          "IMAGE": "localhost/gblastn:thor"
+        },
+        "arguments": [
+          "python3",
+          "/opt/gblastn/tests/acceptance.py",
+          "--suite",
+          "gpu",
+          "--work",
+          "/work/final-gpu"
+        ]
+      },
+      "sanitizer_records": []
+    },
+    "release-memcheck": {
+      "passed": true,
+      "command_count": 82,
+      "outer_command": {
+        "script": "/tmp/gblastn-thor-QB8xuZNb/scripts/run-container.sh",
+        "environment": {
+          "CONTAINER_ENGINE": "podman",
+          "OCI_RUNTIME": "/tmp/gblastn-thor-QB8xuZNb/runtime-tools/extracted/usr/bin/crun",
+          "WORK_DIR": "/tmp/gblastn-thor-QB8xuZNb/validation",
+          "GPU": "1",
+          "IMAGE": "localhost/gblastn:thor-validation"
+        },
+        "arguments": [
+          "python3",
+          "/opt/gblastn/tests/acceptance.py",
+          "--suite",
+          "gpu",
+          "--work",
+          "/work/release-memcheck",
+          "--sanitizer",
+          "memcheck",
+          "--timeout",
+          "1800"
+        ]
+      },
+      "sanitizer_records": [
+        {
+          "label": "small-both-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "16f169cd14ecea1b6cef9e6a6dfd50d9899f76093233d3e899343876e79cfc32"
+        },
+        {
+          "label": "small-both-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "667df8c5814b8d294bd09fa141d47a50dcd46a768ec9c3e562fd7c3b6247d94c"
+        },
+        {
+          "label": "small-plus-dust-yes-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "d7df41b590cd6af9716e7d003214359f96686370e9baa7efffbb5c0d2f5f6d07"
+        },
+        {
+          "label": "small-plus-dust-yes-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "c56971a9e208a0860aa77b1a57d481c472dbffa901b64a948965cfcc8412ca7d"
+        },
+        {
+          "label": "small-minus-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "a4ba319c71bad8c387627eddbd43f2b32316d6419353475bfe48d908ded53691"
+        },
+        {
+          "label": "small-minus-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "a59d78d8ebb2d4c910c4aeb7b55be1aeed3f23b06b079a26db08ed11c0e2eccc"
+        },
+        {
+          "label": "megablast-both-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "f38c33d98898f679cc02b697440736cea45d3c4c8390f0566ae4170bbdef0449"
+        },
+        {
+          "label": "megablast-both-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "fa1e608d0abac16dcafeb944d948c8ed1e6bdcb6e920687858e880b9a33bf739"
+        },
+        {
+          "label": "megablast-plus-dust-yes-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "ca319c224559fdfef338d8cae47c0c14770b7b13c655f31f1ec7989994a189b3"
+        },
+        {
+          "label": "megablast-plus-dust-yes-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "292555fb666bd0bf82bc3866d9e1eb3b523497ef8f04f331147cc594afabfb21"
+        },
+        {
+          "label": "megablast-minus-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "1a3d65b22e77daa1370eedaca850e39e0b0462fd82e5c98731586ffb2478f398"
+        },
+        {
+          "label": "megablast-minus-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "efe22c5036c8058f6b2abc97460577572a00334a8a1ab681ce660bc349facdc9"
+        },
+        {
+          "label": "word-7-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "ffc56a6a60266d07ef941ccd09886f51813c7807c9d7710691ef2a37dfb779de"
+        },
+        {
+          "label": "word-9-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "574c2d658465599f10a0a1b0b668ca6736b343a1ebd418b978508a77aa741f71"
+        },
+        {
+          "label": "word-12-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "fe14347a89a6894a12829f336b7f3cacbba92014080b894a1b16ccdd0ea7db7d"
+        },
+        {
+          "label": "pipeline-0-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "a2f467d2718c102cdfc99053f50e2c1954c1a535bd41ec4b3814d293fdf41917"
+        },
+        {
+          "label": "pipeline-1-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "0c6e84f32e252109cf9a3eee0fea339bced97b2ca98f8cd84285411ebddf9a7b"
+        },
+        {
+          "label": "pipeline-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "cfeca4aba4c305379efc5948cb8132e964cb5e78c1031981099d687f0b83ab03"
+        },
+        {
+          "label": "pipeline-3-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "92165238e381ee16e7b46dfb4e5b8108bcaef572d0e253dd05c75250735f4a34"
+        },
+        {
+          "label": "multibatch-0-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "0cadc8d46f31ebe9a08eea99baa958ef0e8e487b1cc5f9abb43321a7e239eeda"
+        },
+        {
+          "label": "multibatch-0-gpu-threads-2",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "30c143d5630d3264bd2c500f07afd0a2f92730e5309669a6b859be24d3841a2e"
+        },
+        {
+          "label": "multibatch-1-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "9c1e3ff1ef40b9c450655c40f920e4fc9d9f9705b738bb06a8316120c598ff74"
+        },
+        {
+          "label": "multibatch-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "5f5d847a28e094a4255aefa0c73475bbf976ca312eaad83b09084a67214b40d3"
+        },
+        {
+          "label": "multibatch-2-gpu-threads-2",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "de2e716c3432e3ce83e262b4208443f1483aab17391902989dd33ab5992d626d"
+        },
+        {
+          "label": "small-threads-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "aa283f63c164776471e2652324fa66318f5b03dafcfa2598d714364cc85ef0b0"
+        },
+        {
+          "label": "megablast-threads-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "e95589188e3b2681726b25c61131d86594d3d63faae388df35811af898036b9b"
+        }
+      ]
+    },
+    "release-racecheck": {
+      "passed": true,
+      "command_count": 82,
+      "outer_command": {
+        "script": "/tmp/gblastn-thor-QB8xuZNb/scripts/run-container.sh",
+        "environment": {
+          "CONTAINER_ENGINE": "podman",
+          "OCI_RUNTIME": "/tmp/gblastn-thor-QB8xuZNb/runtime-tools/extracted/usr/bin/crun",
+          "WORK_DIR": "/tmp/gblastn-thor-QB8xuZNb/validation",
+          "GPU": "1",
+          "IMAGE": "localhost/gblastn:thor-validation"
+        },
+        "arguments": [
+          "python3",
+          "/opt/gblastn/tests/acceptance.py",
+          "--suite",
+          "gpu",
+          "--work",
+          "/work/release-racecheck",
+          "--sanitizer",
+          "racecheck",
+          "--timeout",
+          "1800"
+        ]
+      },
+      "sanitizer_records": [
+        {
+          "label": "small-both-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "b30476d6b96a355e9d7a55c9726586fe45b26143e7cdb0e43e5b66dcc3a38bda"
+        },
+        {
+          "label": "small-both-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "6b82a52f340e700289c3d31714af08ffd98d36aedbf3bbdf13dae74ca4931c37"
+        },
+        {
+          "label": "small-plus-dust-yes-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "9274e455622687021b653dc1281c4deb5301bd389af702529a627948211eac85"
+        },
+        {
+          "label": "small-plus-dust-yes-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "38fe3f543c852cd0d928afe6dfcbe3778cb26235adfca701323fff69b4c4bba6"
+        },
+        {
+          "label": "small-minus-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "f10e5b5c50b39e2b6111d65cb16615b13bfce0824dcc78539c4151791bb48a64"
+        },
+        {
+          "label": "small-minus-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "81b594f588f13d92af1fdf5569884414a73a938c6289cc53c1d8b6dc0fb3fc5c"
+        },
+        {
+          "label": "megablast-both-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "da0233b63a3908cdd7fb5ee3e8f0ac7ce6086afc2295b3108dff77632418145b"
+        },
+        {
+          "label": "megablast-both-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "4becf1b7e221401244f5ca82086ed8b28adf81985dd9db286cf19b05ceaf6389"
+        },
+        {
+          "label": "megablast-plus-dust-yes-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "7db525761d6fcf06a991c0ebfbbe23c9183905c88d404529e153575d5963c753"
+        },
+        {
+          "label": "megablast-plus-dust-yes-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "c116a8b04215f928537043824ab5e0b4b482899c1a8dce3ffcccec270dc4ca46"
+        },
+        {
+          "label": "megablast-minus-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "6b863730dfcc715ac86e136a378b82c4d7d3e65a6e71021c9d7b452fd1ee1558"
+        },
+        {
+          "label": "megablast-minus-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "e0f73cf666fa6fc03d394022f2ced6e659a758e56e1ec04a4651c64431bbfc4b"
+        },
+        {
+          "label": "word-7-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "1cefc833bcc39ff5cfd803a6a467d58b5adce7029c326744bc81175d2b18ebb1"
+        },
+        {
+          "label": "word-9-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "d90552a59835f370cc1de1665ba5244bb52cb2645306e64bc0c00f3a8c756ec2"
+        },
+        {
+          "label": "word-12-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "96b7cecd367e837692410d4e9bca3ae4f001eea770d0eb9bfed706b52cd17767"
+        },
+        {
+          "label": "pipeline-0-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "04c4b810bfcb3704a5ee241287cb626b0f48e62e1c79e650e21c2825b6f7d5c6"
+        },
+        {
+          "label": "pipeline-1-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "94ae6097dd7193e9415153ab47442be670647a111448a893c6a45c6fb514101d"
+        },
+        {
+          "label": "pipeline-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "b4d09185b67cad13e17af8d17d5cb0cd42c6b7eaa3908b8296e2e25b54689c46"
+        },
+        {
+          "label": "pipeline-3-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "b0c2d74cacc7c3ebf0e2fa0bee359b75353163dc3c0c52024de496ec76cf805e"
+        },
+        {
+          "label": "multibatch-0-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "7b631fa82c1a0c3f31fcf572c49e02b5d44b17e9559cfc4c618b5827dd04f0fa"
+        },
+        {
+          "label": "multibatch-0-gpu-threads-2",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "e7e9a7f33d2893693cc8ad09b2a55765a37cf28e26d0dce9c8e25a34868c359e"
+        },
+        {
+          "label": "multibatch-1-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "07e3b8c15c4bc54bb3d4a1e114427dda963437d8ab069748a31e6d0c966b513a"
+        },
+        {
+          "label": "multibatch-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "81bc0ca1ad7b9366b4da687130ed2fce3801ced0735b25f8baf594f7d1a8bf03"
+        },
+        {
+          "label": "multibatch-2-gpu-threads-2",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "37e3bf2bd7f06febae0e41baea9737c918a6d6f3faa94b3cf89ccdbc8b5ce204"
+        },
+        {
+          "label": "small-threads-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "73163923d46e83e7a19c757e6ab1c4df2f3554dd128aca388ac5740138e5e3d1"
+        },
+        {
+          "label": "megablast-threads-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)"
+          ],
+          "stdout_sha256": "91dbb142f8feb8786cd6fde6ac035e816b67db14e4b7b400a01386ec106b75c4",
+          "stderr_sha256": "10ed41b65ac32a7469e1ab30f9cf7fc5fa0705230f7e65354d661d31a318f1ab"
+        }
+      ]
+    },
+    "release-synccheck": {
+      "passed": true,
+      "command_count": 82,
+      "outer_command": {
+        "script": "/tmp/gblastn-thor-QB8xuZNb/scripts/run-container.sh",
+        "environment": {
+          "CONTAINER_ENGINE": "podman",
+          "OCI_RUNTIME": "/tmp/gblastn-thor-QB8xuZNb/runtime-tools/extracted/usr/bin/crun",
+          "WORK_DIR": "/tmp/gblastn-thor-QB8xuZNb/validation",
+          "GPU": "1",
+          "IMAGE": "localhost/gblastn:thor-validation"
+        },
+        "arguments": [
+          "python3",
+          "/opt/gblastn/tests/acceptance.py",
+          "--suite",
+          "gpu",
+          "--work",
+          "/work/release-synccheck",
+          "--sanitizer",
+          "synccheck",
+          "--timeout",
+          "1800"
+        ]
+      },
+      "sanitizer_records": [
+        {
+          "label": "small-both-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "7b610621017e03d67d605227d74d70b5663996b4c13744e4ea4851e4445a6d1b"
+        },
+        {
+          "label": "small-both-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "57342f51cefb7d3d4e0d3cced97a081aa2e318d531d8f58be1a3dc2a32d5e7fc"
+        },
+        {
+          "label": "small-plus-dust-yes-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "dae87b1f4a3b14c9d3195b341308e0df869604724f38bbd2fbfe4eca68bf84c1"
+        },
+        {
+          "label": "small-plus-dust-yes-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "17db81a7c82438beb2c18b53bce5564e5ba3588841b753a06f18f384fecb0d85"
+        },
+        {
+          "label": "small-minus-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "7466159d2b524a1cbf9fb08a30709fc5606e85b982558692a5d8b1a0ddad343d"
+        },
+        {
+          "label": "small-minus-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "b9ae1a90418794fe897c5186627e3ce1735839efd2167c894bce1b73f62bbef4"
+        },
+        {
+          "label": "megablast-both-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "83596e03623a66cfeba39fac1d3411f0fad9ff72cd79ac7ccbd529884903fdf6"
+        },
+        {
+          "label": "megablast-both-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "c92fc235386160917c862c24273ad1e155780978140b1d6e4a93f9d5e26cd3b2"
+        },
+        {
+          "label": "megablast-plus-dust-yes-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "778b1b4ca749f526037586eefa7829bbc00965083bf8f35bb650891af5d060fe"
+        },
+        {
+          "label": "megablast-plus-dust-yes-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "6d0bdf405d01e04cd98790a7aa07640f5ac4b1e66d74d121a91538d6b7be0be5"
+        },
+        {
+          "label": "megablast-minus-dust-no-gpu-0",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "36c0548cf584bbdcdb02c1832a7d6df30d7b999ef31fd096954153bf1e84ca89"
+        },
+        {
+          "label": "megablast-minus-dust-no-gpu-1",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "943d4d980de251f842d0482a8a41aef2f6cf47fb118c78edb8ef14f22d99165f"
+        },
+        {
+          "label": "word-7-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "b28c80f466355b71a8e21101d38fbb251399222a8f35560c721569aa2df03152"
+        },
+        {
+          "label": "word-9-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "00a0d4cbe0cdc8a49c54aa27f23eee669dca61ed42e9f8dd31edb95bbf81b933"
+        },
+        {
+          "label": "word-12-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "670c49856ec632696c62f770d4eea2d9aae20add2fec88f6cb302702a20a4933"
+        },
+        {
+          "label": "pipeline-0-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "1adca6e441df1dd2a4b9bc42b3f09bd1d7611c577b6ad66503b6195eeb451250"
+        },
+        {
+          "label": "pipeline-1-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "f09217c42470b52a6b10fb9ed817dbdaaeb1a651efc5dc3e584a68fc06c25be4"
+        },
+        {
+          "label": "pipeline-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "c74f3fe81132e6cbcb111410daa9d406c62f325d7ca83cf110fa58b1466eca94"
+        },
+        {
+          "label": "pipeline-3-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "74c5072d0a45da524616e0a98be1851dab04e155e01038d80f7b7d1564f432d3"
+        },
+        {
+          "label": "multibatch-0-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "a01141a763bcf33e30f4d7bac4447d8585da63a0829eba9563bb733cc5061a6d"
+        },
+        {
+          "label": "multibatch-0-gpu-threads-2",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "89bfa6f2be9ea2ab9a94384e0033a9a548612976dfd9299db117527a47f8f5ce"
+        },
+        {
+          "label": "multibatch-1-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "dec0fb0f90ce0bd340bc967cb98cdbab98e0171eb6642b8f98602fc28088a7bf"
+        },
+        {
+          "label": "multibatch-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "14f621cca68b9649b3be5f6ed160123bfa3d03654d1676faa662f30c8dc7f1a0"
+        },
+        {
+          "label": "multibatch-2-gpu-threads-2",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "e361f0a19b3ded137263a01f451099df8c45a46ebaf25d97f63962ecdc9030f3"
+        },
+        {
+          "label": "small-threads-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "8736b4dcae8ff7a947091772e081c27abfa2d1d29ff5d1eb28975e9d338f2085"
+        },
+        {
+          "label": "megablast-threads-2-gpu",
+          "returncode": 0,
+          "summaries": [
+            "========= ERROR SUMMARY: 0 errors"
+          ],
+          "stdout_sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425",
+          "stderr_sha256": "f7ba113e41ac0e86875c8fe3170ef80952d7bce589f605197955f4df461d2d1b"
+        }
+      ]
+    }
+  },
+  "timings": [
+    {
+      "branch": "small",
+      "cpu_wall_seconds": 0.016047864919528365,
+      "gpu_wall_seconds": 0.3010307338554412,
+      "gpu_tracked_peak_bytes": 308569
+    },
+    {
+      "branch": "megablast",
+      "cpu_wall_seconds": 0.02510148100554943,
+      "gpu_wall_seconds": 0.24131106305867434,
+      "gpu_tracked_peak_bytes": 16937622
+    }
+  ],
+  "wrapper_checks": {
+    "stdout_matches_file_output": true,
+    "observed_uid": 1000,
+    "observed_gid": 1000
+  },
+  "measurement_notes": "Single-process fixture wall times include process and CUDA startup. Tracked GPU allocation excludes driver/context and Thrust scratch. Child maxrss in per-suite records is cumulative, not per-command memory. No throughput or speedup claim."
+}

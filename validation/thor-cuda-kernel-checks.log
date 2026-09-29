@@ -1,0 +1,34 @@
+device=NVIDIA Thor capability=11.0
+PASS real CUDA branch=small width=8 step=1 start=0 scan=6743 extended=6321
+PASS real CUDA branch=small width=8 step=4 start=0 scan=1699 extended=1595
+PASS real CUDA branch=small width=8 step=3 start=2 scan=2203 extended=2066
+PASS real CUDA branch=megablast width=11 step=1 start=0 scan=5844 extended=5530
+PASS real CUDA branch=megablast width=11 step=18 start=0 scan=319 extended=303
+PASS real CUDA branch=megablast width=12 step=17 start=3 scan=375 extended=347
+========= COMPUTE-SANITIZER
+device=NVIDIA Thor capability=11.0
+PASS real CUDA branch=small width=8 step=1 start=0 scan=6743 extended=6321
+PASS real CUDA branch=small width=8 step=4 start=0 scan=1699 extended=1595
+PASS real CUDA branch=small width=8 step=3 start=2 scan=2203 extended=2066
+PASS real CUDA branch=megablast width=11 step=1 start=0 scan=5844 extended=5530
+PASS real CUDA branch=megablast width=11 step=18 start=0 scan=319 extended=303
+PASS real CUDA branch=megablast width=12 step=17 start=3 scan=375 extended=347
+========= ERROR SUMMARY: 0 errors
+========= COMPUTE-SANITIZER
+device=NVIDIA Thor capability=11.0
+PASS real CUDA branch=small width=8 step=1 start=0 scan=6743 extended=6321
+PASS real CUDA branch=small width=8 step=4 start=0 scan=1699 extended=1595
+PASS real CUDA branch=small width=8 step=3 start=2 scan=2203 extended=2066
+PASS real CUDA branch=megablast width=11 step=1 start=0 scan=5844 extended=5530
+PASS real CUDA branch=megablast width=11 step=18 start=0 scan=319 extended=303
+PASS real CUDA branch=megablast width=12 step=17 start=3 scan=375 extended=347
+========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)
+========= COMPUTE-SANITIZER
+device=NVIDIA Thor capability=11.0
+PASS real CUDA branch=small width=8 step=1 start=0 scan=6743 extended=6321
+PASS real CUDA branch=small width=8 step=4 start=0 scan=1699 extended=1595
+PASS real CUDA branch=small width=8 step=3 start=2 scan=2203 extended=2066
+PASS real CUDA branch=megablast width=11 step=1 start=0 scan=5844 extended=5530
+PASS real CUDA branch=megablast width=11 step=18 start=0 scan=319 extended=303
+PASS real CUDA branch=megablast width=12 step=17 start=3 scan=375 extended=347
+========= ERROR SUMMARY: 0 errors

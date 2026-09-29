@@ -5,8 +5,8 @@
 #include <string>
 // CUDA runtime
 #include <cuda_runtime.h>
-#include <helper_cuda.h>
-#include <algo/blast/gpu_blast/thread_work_queue.hpp>
+#include <mutex>
+#include <thread>
 
 
 #ifdef _MSC_VER
@@ -22,14 +22,13 @@ class GpuObject
 {
 public:
 	GpuObject(){};
-	~GpuObject(){};
+	virtual ~GpuObject(){};
 	virtual void CreateData(){};
 protected:
 	
 private:
 };
 
-class ThreadLock;
 
 struct GpuData 
 {
@@ -46,8 +45,8 @@ struct GpuHandle
 typedef map<int, GpuHandle*> GpuHandleMapType;
 typedef pair<int, GpuHandle*>	GpuHandleMapPairType;
 
-typedef map<unsigned long, int> ThreadGPUMapType;
-typedef pair<unsigned long, int> ThreadGPUPairType;
+typedef map<std::thread::id, int> ThreadGPUMapType;
+typedef pair<std::thread::id, int> ThreadGPUPairType;
 
 class GpuBlastMultiGPUsUtils
 {
@@ -84,7 +83,7 @@ private:
 
 	int select_id;
 
-	ThreadLock mt_lock;
+	std::mutex mt_lock;
 
 	int i_num_limited;
 };

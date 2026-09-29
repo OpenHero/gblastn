@@ -2,7 +2,7 @@
 
 SUB_PROJ = test demo
 
-CXXFLAGS = $(FAST_CXXFLAGS) -mssse3
+CXXFLAGS = $(FAST_CXXFLAGS)
 
 srcdir = @srcdir@
 include @builddir@/Makefile.meta

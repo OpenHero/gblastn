@@ -735,15 +735,11 @@ ncbi_compiler="UNKNOWN"
 ncbi_compiler_ver="0"
 
 if test "$GCC" = "yes" ; then
-   compiler_ver="`$real_CXX -dumpversion 2>&1`"
-   case "$compiler_ver" in
-     2.95* | 2.96* | 3.* | 4.* )
-       compiler="GCC"
-       ncbi_compiler="GCC"
-       ncbi_compiler_ver="$compiler_ver"
-       NCBI_FEATURE(GCC)
-       ;;
-   esac
+   compiler_ver="`$real_CXX -dumpfullversion -dumpversion 2>/dev/null || $real_CXX -dumpversion`"
+   compiler="GCC"
+   ncbi_compiler="GCC"
+   ncbi_compiler_ver="$compiler_ver"
+   NCBI_FEATURE(GCC)
 elif test "$KCC" = "yes" ; then
    compiler_ver="$kcc_ver"
    compiler="KCC"
@@ -845,6 +841,10 @@ fi
 changequote(, )dnl
 #ncbi_compiler_ver="`echo $ncbi_compiler_ver | sed 's%\([0-9]\)\.\([0-9]\)\.\([0-9]\).*%\1\2\3%; s%\([0-9]\)\.\([0-9][0-9]*\).*%\1\2%; s%^\([0-9][0-9]\)$%\10%; s%^\([0-9]\)$%\100%'`"
 case "$compiler:$ncbi_compiler_ver" in
+    GCC:*)
+        # GCC 7+ may return only its multi-digit major from -dumpversion.
+        ncbi_compiler_ver=`echo "$ncbi_compiler_ver" | awk -F. '{print $1 * 100 + $2 * 10 + $3}'`
+        ncbi_compiler_sed='' ;;
     WorkShop*:?.?? )   ncbi_compiler_sed='s/\([0-9]\)\.\([0-9][0-9]\)/\1\20/' ;;
     WorkShop*:[6-9].?) ncbi_compiler_sed='s/\([0-9]\)\.\([0-9\)/\10\20/' ;;
     ICC:??.? )  ncbi_compiler_sed='s/\([0-9][0-9]\)\.\([0-9]\)/\1\20/' ;;

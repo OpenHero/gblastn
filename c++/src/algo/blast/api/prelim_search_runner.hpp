@@ -40,6 +40,7 @@
  * @{
  */
 
+#include <exception>
 #include <corelib/ncbithr.hpp>                  // for CThread
 #include <algo/blast/api/setup_factory.hpp>
 #include "blast_memento_priv.hpp"
@@ -152,15 +153,27 @@ public:
         }
     }
 
+    void RethrowFailure() const {
+        if (m_Error) std::rethrow_exception(m_Error);
+    }
+
 protected:
     virtual ~CPrelimSearchThread(void) {}
 
     virtual void* Main(void) {
-        return (void*) 
-            ((intptr_t) CPrelimSearchRunner(m_InternalData, m_OptsMemento)());
+        try {
+            return reinterpret_cast<void*>(static_cast<intptr_t>(
+                CPrelimSearchRunner(m_InternalData, m_OptsMemento)()));
+        } catch (...) {
+            // Transfer failures to the joining search thread. CThread's
+            // default exception handling cannot propagate CUDA errors.
+            m_Error = std::current_exception();
+            return reinterpret_cast<void*>(static_cast<intptr_t>(-1));
+        }
     }
 
 private:
+    std::exception_ptr m_Error;
     SInternalData m_InternalData;
     const CBlastOptionsMemento* m_OptsMemento;
 };

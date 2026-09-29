@@ -738,3 +738,6 @@ c++/src/algo/blast/dbindex_search/Makefile.in
 c++/include/objects/blast/blastclient.hpp
 shell/m.ls.log
 .VSCodeCounter
+/.build/
+__pycache__/
+*.pyc

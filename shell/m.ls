@@ -1,2 +1,2 @@
-/home/kyle/ncbi/query/query.10.fa
-/home/kyle/ncbi/query/query.12.fa
+queries/query.10.fa
+queries/query.12.fa

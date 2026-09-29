@@ -1,36 +1,23 @@
-#ifndef __GPU_BLAST_LOOKUP_HASH_V3_H__
-#define __GPU_BLAST_LOOKUP_HASH_V3_H__
-
-__global__ 
-	void kernel_lookupInBigHashTable_v3( 
-	Int4 * hashtable,
-	Int4 * next_pos,
-	Uint4 num_hits,
-	BlastOffsetPair * offset_pairs, BlastOffsetPair * exact_offset_pairs,
-	unsigned int *total_hits_num,
-	Uint4 next_pos_len)
-{						
-	Uint4 index = blockIdx.x*blockDim.x +threadIdx.x;
-	if (index< num_hits)
-	{
-		BlastOffsetPair qs_offset_pair = offset_pairs[index];
-		Uint4 s_index = qs_offset_pair.qs_offsets.q_off;
-		Uint4 s_off = qs_offset_pair.qs_offsets.s_off;
-		Uint4 q_off = hashtable[s_index];
-		while(q_off)
-		{	 
-			Uint4 i = atomicAdd(total_hits_num, 1);
-			exact_offset_pairs[i].qs_offsets.q_off = q_off - 1;
-			exact_offset_pairs[i].qs_offsets.s_off = s_off;
-			if (q_off < next_pos_len)
-			{
-				q_off = next_pos[q_off];
-			}else
-			{
-				break;
-			}
-		}
-	}
+#ifndef GBLASTN_LOOKUP_CUH
+#define GBLASTN_LOOKUP_CUH
+// Count and emit are separate launches, with a prefix sum between them. This
+// preserves the CPU scanner's subject order AND the table's query-chain order.
+// No inter-thread shared memory, warp lockstep assumption, or append overflow.
+template<bool Small, bool Emit>
+__global__ void gpu_scan_lookup(const Uint1* subject, Int4 start, Int4 step,
+    Int4 word_length, Uint4 positions, const Int2* backbone,
+    const Int2* overflow, Uint4 overflow_length, const Int4* hash,
+    const Int4* next, Uint4 next_length, Uint4 chain_limit,
+    Uint4* counts, const Uint4* prefix, BlastOffsetPair* output, Uint4* error)
+{
+    Uint4 i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= positions) return;
+    Int4 s = start + Int4(i) * step;
+    Uint4 word = gpu_word(subject, s, word_length);
+    BlastOffsetPair* out = Emit ? output + prefix[i] : NULL;
+    Uint4 count = Small
+        ? gpu_small_chain(backbone[word], overflow, overflow_length, chain_limit, out, s, error)
+        : gpu_mb_chain(hash[word], next, next_length, chain_limit, out, s, error);
+    if (!Emit) counts[i] = count;
 }
-
 #endif

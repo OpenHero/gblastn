@@ -53,8 +53,12 @@ static char const rcsid[] = "$Id: seqdbvol.cpp 389295 2013-02-14 18:44:05Z rafan
 
 //////////////////////////////////////////////////////////////////////////
 //added by kyzhao for gpu blastn 2013.04.30
-#include <util/bitset/wrapper_tmmintrin.h>
-#include <emmintrin.h>
+// SSSE3 is optional. ARM64 uses the identical scalar translation table.
+#if defined(__SSSE3__) && (defined(__i386__) || defined(__x86_64__))
+#  include <tmmintrin.h>
+#  include <emmintrin.h>
+#  define GBLASTN_HAVE_SSSE3 1
+#endif
 #include <algo/blast/gpu_blast/gpu_blastn_config.hpp>
 
 
@@ -514,16 +518,16 @@ s_SeqDBMapNA2ToNA8(const char        * buf2bit,
 	//total_translate += whole_chars_end-p; //for test;
 	//printf("%d\n",total_translate);
 
-	const Uint4* p_expanded = (Uint4*)&expanded.front();
-	const unsigned char* p_buf2bit = (unsigned char*)(buf2bit+p);
-	Uint4* 	p_buf8bit = (Uint4*)(buf8bit+pos);
+	const unsigned char* p_buf2bit = (const unsigned char*)(buf2bit+p);
 
 	int loop_times = (whole_chars_end-p);
 
 	for(int i = 0; i < loop_times; i++)
 	{
 		Int4 table_offset = p_buf2bit[i];
-		p_buf8bit[i] = p_expanded[table_offset];
+		// Slice starts need not be word aligned. memcpy also avoids aliasing
+		// byte storage as Uint4 on ARM64 (the output bytes are unchanged).
+		memcpy(buf8bit + pos + i * 4, &expanded[table_offset * 4], 4);
 	}
 
 	pos += loop_times*4;
@@ -588,7 +592,7 @@ unsigned SeqDB_ncbina8_to_blastna8[] = {
 /// @param range
 ///    The range of opearation. [in]
 
-#if OPT_TRACEBACK
+#if OPT_TRACEBACK && defined(GBLASTN_HAVE_SSSE3)
 
 #ifndef WIN32
 unsigned int a[] __attribute__ ((aligned(16))) ={0x0601000f, 0x0d090402, 0x0c050803, 0x0e0a0b07};

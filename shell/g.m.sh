@@ -1,12 +1,10 @@
 #!/bin/sh
-echo "***************start*****************"
-blastn="/home/kyle/testGBTN/gblastn/c++/GCC700-ReleaseMT64/bin/blastn"
-data_dir="/home/kyle/ncbi/"
-database="${data_dir}database/blastdb/human.wm"
-maskdb="${data_dir}database/blastdb/human.stat"
-query_list="m.ls"
-outpath="${data_dir}log/log.txt"
- 
-$blastn -db $database -window_masker_db $maskdb -query_list $query_list -evalue 1e-5 -max_target_seqs 10 -outfmt "7" -out $outpath -use_gpu true
-
-echo "***************complete*****************"
+# Batch example: query-list entries are paths to individual FASTA files.
+set -eu
+: "${BLASTN:=blastn}"
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 database-prefix query-list output-prefix" >&2
+    exit 2
+fi
+exec "$BLASTN" -db "$1" -query_list "$2" -out "$3" \
+    -task megablast -mode 1 -evalue 1e-5 -max_target_seqs 10 -outfmt 7 -use_gpu true

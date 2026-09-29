@@ -73,11 +73,20 @@ private:
         m_DbOpts        = local_opts->m_DbOpts.Get();
         m_ScoringOpts   = local_opts->m_ScoringOpts.Get();
         m_EffLenOpts    = local_opts->m_EffLenOpts.Get();
+        m_GpuStorage.query_list = local_opts->m_QueryList.c_str();
+        m_GpuStorage.use_gpu = local_opts->m_UseGpu;
+        m_GpuStorage.gpu_id = local_opts->m_GpuId;
+        m_GpuStorage.prepare_num = local_opts->m_PrepareNum;
+        m_GpuStorage.prelim_num = local_opts->m_PrelimNum;
+        m_GpuStorage.trace_num = local_opts->m_TraceNum;
+        m_GpuStorage.print_num = local_opts->m_PrintNum;
+        m_GpuOpts = &m_GpuStorage;
     }
 
 	//////////////////////////////////////////////////////////////////////////
 	//added by kyzhao for GPU blastn
 	/* *********** START ************* */
+	BlastGPUOptions m_GpuStorage;
 	BlastGPUOptions* m_GpuOpts;     
     
 	/* ********** FINISH ************* */
